@@ -1,0 +1,70 @@
+{% extends "frontend/base.html" %}
+{% block title %}Startup Dashboard — Startly{% endblock %}
+
+{% block content %}
+<section class="dashboard-header">
+    <div>
+        <div class="eyebrow">STARTUP DASHBOARD</div>
+        <h1>Manage your hiring.</h1>
+        <p>Enter a startup ID to view its current openings and applications.</p>
+    </div>
+    <div class="id-control">
+        <label for="startup-id">Startup ID</label>
+        <input id="startup-id" type="number" min="1" value="1">
+        <button class="btn btn-primary btn-small" onclick="openStartup()">Open</button>
+    </div>
+</section>
+
+<section class="section compact">
+    <div class="dashboard-actions">
+        <a id="applications-link" class="btn btn-secondary" href="#">View applications →</a>
+        <a class="btn btn-secondary" href="/jobs/">Browse all jobs</a>
+    </div>
+</section>
+
+<section class="section compact">
+    <div id="startup-summary" class="card">
+        <div class="loading">Choose a startup ID to load its summary.</div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openStartup() {
+    const id = document.getElementById("startup-id").value;
+    if (!id) return;
+
+    localStorage.setItem("startlyStartupId", id);
+    document.getElementById("applications-link").href = `/startup/${id}/applications/`;
+
+    fetch(`/api/startups/${id}/`)
+        .then(response => response.json())
+        .then(startup => {
+            document.getElementById("startup-summary").innerHTML = `
+                <div class="eyebrow">${escapeHtml(startup.industry || "STARTUP")}</div>
+                <h2>${escapeHtml(startup.name)}</h2>
+                <p>${escapeHtml(startup.description)}</p>
+                <div class="meta-row">
+                    <span>📍 ${escapeHtml(startup.location || "Location not specified")}</span>
+                    <span class="status ${startup.is_hiring ? "status-open" : "status-muted"}">
+                        ${startup.is_hiring ? "Hiring" : "Not hiring"}
+                    </span>
+                </div>
+            `;
+        })
+        .catch(() => {
+            document.getElementById("startup-summary").innerHTML =
+                errorBox("Could not load that startup.");
+        });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const saved = localStorage.getItem("startlyStartupId");
+    if (saved) {
+        document.getElementById("startup-id").value = saved;
+        openStartup();
+    }
+});
+</script>
+{% endblock %}

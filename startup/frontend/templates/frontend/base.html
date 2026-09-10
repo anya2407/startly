@@ -1,0 +1,33 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Startly{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'frontend/css/style.css' %}">
+</head>
+<body>
+    <nav class="navbar">
+        <a class="brand" href="/">Startly<span>.</span></a>
+        <div class="nav-links">
+            <a href="/startups/">Startups</a>
+            <a href="/jobs/">Jobs</a>
+            <a href="/student/">Student Dashboard</a>
+            <a href="/startup-dashboard/">Startup Dashboard</a>
+        </div>
+    </nav>
+
+    <main class="page">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <span>Startly</span>
+        <span>Students × Startups</span>
+    </footer>
+
+    <script src="{% static 'frontend/js/app.js' %}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

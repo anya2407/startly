@@ -1,0 +1,51 @@
+{% extends "frontend/base.html" %}
+{% block title %}Startly — Students meet startups{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div class="eyebrow">STUDENTS × STARTUPS</div>
+    <h1>Find the people and opportunities that help you <span>build.</span></h1>
+    <p class="hero-copy">
+        Discover startups, explore skill-matched jobs, and connect with teams
+        looking for people like you.
+    </p>
+    <div class="hero-actions">
+        <a class="btn btn-primary" href="/jobs/">Explore jobs</a>
+        <a class="btn btn-secondary" href="/startups/">Discover startups</a>
+    </div>
+</section>
+
+<section class="stats-strip">
+    <div><strong>20+</strong><span>Skills</span></div>
+    <div><strong>8</strong><span>Students</span></div>
+    <div><strong>5</strong><span>Startups</span></div>
+    <div><strong>8</strong><span>Openings</span></div>
+</section>
+
+<section class="section">
+    <div class="section-heading">
+        <div>
+            <div class="eyebrow">HOW IT WORKS</div>
+            <h2>Built around skills, not noise.</h2>
+        </div>
+    </div>
+
+    <div class="feature-grid">
+        <article class="card feature-card">
+            <div class="icon">01</div>
+            <h3>Discover</h3>
+            <p>Search startups and jobs by skills, keywords, location, and role type.</p>
+        </article>
+        <article class="card feature-card">
+            <div class="icon">02</div>
+            <h3>Connect</h3>
+            <p>See what teams are building and what skills their opportunities need.</p>
+        </article>
+        <article class="card feature-card">
+            <div class="icon">03</div>
+            <h3>Apply</h3>
+            <p>Send applications directly to jobs and track what happens next.</p>
+        </article>
+    </div>
+</section>
+{% endblock %}

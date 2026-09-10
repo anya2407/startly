@@ -1,0 +1,73 @@
+{% extends "frontend/base.html" %}
+{% block title %}Student Dashboard — Startly{% endblock %}
+
+{% block content %}
+<section class="dashboard-header">
+    <div>
+        <div class="eyebrow">STUDENT DASHBOARD</div>
+        <h1>Find your next opportunity.</h1>
+        <p>Browse jobs and startups using the skills you already have.</p>
+    </div>
+    <div class="id-control">
+        <label for="student-id">Student ID</label>
+        <input id="student-id" type="number" min="1" value="1">
+        <button class="btn btn-primary btn-small" onclick="saveStudentId()">Save</button>
+    </div>
+</section>
+
+<section class="section compact">
+    <div class="section-heading">
+        <div>
+            <div class="eyebrow">JOBS</div>
+            <h2>Recommended starting points</h2>
+        </div>
+        <a class="text-link" href="/jobs/">View all jobs →</a>
+    </div>
+    <div id="student-jobs" class="card-grid">
+        <div class="loading">Loading jobs…</div>
+    </div>
+</section>
+
+<section class="section compact">
+    <div class="section-heading">
+        <div>
+            <div class="eyebrow">STARTUPS</div>
+            <h2>Teams worth exploring</h2>
+        </div>
+        <a class="text-link" href="/startups/">View all startups →</a>
+    </div>
+    <div id="student-startups" class="card-grid">
+        <div class="loading">Loading startups…</div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadStudentDashboard() {
+    const jobsBox = document.getElementById("student-jobs");
+    const startupsBox = document.getElementById("student-startups");
+
+    try {
+        const [jobsRes, startupsRes] = await Promise.all([
+            fetch("/api/startups/jobs/?open=true"),
+            fetch("/api/startups/")
+        ]);
+        const jobs = await jobsRes.json();
+        const startups = await startupsRes.json();
+
+        jobsBox.innerHTML = jobs.slice(0, 4).map(jobCard).join("");
+        startupsBox.innerHTML = startups.slice(0, 4).map(startupCard).join("");
+    } catch (error) {
+        jobsBox.innerHTML = errorBox("Could not load jobs.");
+        startupsBox.innerHTML = errorBox("Could not load startups.");
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const saved = localStorage.getItem("startlyStudentId");
+    if (saved) document.getElementById("student-id").value = saved;
+    loadStudentDashboard();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends "frontend/base.html" %}
+{% block title %}Job Details — Startly{% endblock %}
+
+{% block content %}
+<section id="job-detail" class="detail-shell">
+    <div class="loading">Loading job…</div>
+</section>
+
+<section class="apply-panel card">
+    <div>
+        <div class="eyebrow">READY TO APPLY?</div>
+        <h2>Send your application.</h2>
+        <p>For now, use your Student ID because authentication is not implemented yet.</p>
+    </div>
+    <div class="apply-form">
+        <input id="student-id" type="number" min="1" placeholder="Student ID">
+        <textarea id="cover-message" rows="4" placeholder="Write a short cover message…"></textarea>
+        <button class="btn btn-primary" onclick="applyToJob()">Apply now</button>
+        <div id="apply-result"></div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const jobId = {{ job_id }};
+
+async function loadJob() {
+    const detail = document.getElementById("job-detail");
+
+    try {
+        const [jobRes, skillsRes] = await Promise.all([
+            fetch(`/api/startups/jobs/${jobId}/`),
+            fetch(`/api/startups/jobs/${jobId}/skills/`)
+        ]);
+
+        const job = await jobRes.json();
+        const skills = await skillsRes.json();
+
+        detail.innerHTML = `
+            <div class="eyebrow">${escapeHtml(job.employment_type || "OPPORTUNITY")}</div>
+            <h1>${escapeHtml(job.title)}</h1>
+            <p class="detail-copy">${escapeHtml(job.description)}</p>
+            <div class="meta-row">
+                <span>📍 ${escapeHtml(job.location || "Location not specified")}</span>
+                <span class="status ${job.is_open ? "status-open" : "status-muted"}">
+                    ${job.is_open ? "Open" : "Closed"}
+                </span>
+            </div>
+            <div class="tag-list">
+                ${skills.map(s => `<span class="tag">${escapeHtml(s.skill.name)}</span>`).join("")}
+            </div>
+        `;
+
+        const saved = localStorage.getItem("startlyStudentId");
+        if (saved) document.getElementById("student-id").value = saved;
+    } catch (error) {
+        detail.innerHTML = errorBox("Could not load this job.");
+    }
+}
+
+async function applyToJob() {
+    const studentId = document.getElementById("student-id").value;
+    const coverMessage = document.getElementById("cover-message").value;
+    const result = document.getElementById("apply-result");
+
+    if (!studentId) {
+        result.innerHTML = '<div class="alert alert-error">Enter a Student ID first.</div>';
+        return;
+    }
+
+    localStorage.setItem("startlyStudentId", studentId);
+
+    try {
+        const response = await fetch(`/api/startups/jobs/${jobId}/apply/`, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                student_id: Number(studentId),
+                cover_message: coverMessage
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            result.innerHTML = '<div class="alert alert-success">Application submitted successfully.</div>';
+        } else {
+            result.innerHTML = `<div class="alert alert-error">${escapeHtml(data.error || "Application failed.")}</div>`;
+        }
+    } catch (error) {
+        result.innerHTML = '<div class="alert alert-error">Could not submit application.</div>';
+    }
+}
+
+document.addEventListener("DOMContentLoaded", loadJob);
+</script>
+{% endblock %}

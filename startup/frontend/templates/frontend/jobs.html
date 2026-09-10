@@ -1,0 +1,483 @@
+{% extends "frontend/base.html" %}
+
+{% block title %}Explore Jobs — Startly{% endblock %}
+
+{% block content %}
+
+<section class="dashboard-header">
+    <div>
+        <div class="eyebrow">OPPORTUNITIES</div>
+
+        <h1>Find a job worth applying for.</h1>
+
+        <p>
+            Filter by skill, keyword, location, or employment type.
+        </p>
+    </div>
+</section>
+
+
+<section class="filter-panel card">
+
+    <div class="filter-grid">
+
+        <!-- KEYWORD -->
+        <div>
+            <label>Keyword</label>
+
+            <input
+                id="keyword"
+                placeholder="e.g. backend"
+            >
+        </div>
+
+
+        <!-- SKILLS -->
+        <div class="skill-filter">
+
+            <label>Skills</label>
+
+            <div class="skill-dropdown">
+
+                <button
+                    type="button"
+                    id="skill-dropdown-button"
+                    class="skill-dropdown-button"
+                >
+                    <span id="skill-dropdown-text">
+                        Select skills
+                    </span>
+
+                    <span class="dropdown-arrow">
+                        ▼
+                    </span>
+                </button>
+
+
+                <div
+                    id="skill-dropdown-menu"
+                    class="skill-dropdown-menu"
+                >
+
+                    <div
+                        id="skill-options"
+                        class="checkbox-list"
+                    >
+                        <span class="filter-loading">
+                            Loading skills...
+                        </span>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- LOCATION -->
+        <div>
+
+            <label>Location</label>
+
+            <input
+                id="location"
+                placeholder="e.g. Remote"
+            >
+
+        </div>
+
+
+        <!-- EMPLOYMENT TYPE -->
+        <div>
+
+            <label>Employment type</label>
+
+            <select id="employment_type">
+
+                <option value="">
+                    Any
+                </option>
+
+                <option value="Internship">
+                    Internship
+                </option>
+
+                <option value="Full-time">
+                    Full-time
+                </option>
+
+            </select>
+
+        </div>
+
+    </div>
+
+
+    <!-- OPEN JOBS -->
+
+    <label class="checkbox-row">
+
+        <input
+            id="open"
+            type="checkbox"
+            checked
+        >
+
+        Show only open jobs
+
+    </label>
+
+
+    <button
+        class="btn btn-primary"
+        onclick="loadJobs()"
+    >
+        Search jobs
+    </button>
+
+</section>
+
+
+<section class="section compact">
+
+    <div
+        id="job-results"
+        class="card-grid"
+    >
+
+        <div class="loading">
+            Loading jobs…
+        </div>
+
+    </div>
+
+</section>
+
+{% endblock %}
+
+
+{% block scripts %}
+
+<script>
+
+/* =========================================================
+   LOAD SKILLS
+   ========================================================= */
+
+async function loadSkills() {
+
+    const container =
+        document.getElementById("skill-options");
+
+    try {
+
+        const response =
+            await fetch("/api/students/skills/");
+
+        const skills =
+            await response.json();
+
+
+        container.innerHTML = skills.map(skill => `
+
+            <label class="skill-checkbox">
+
+                <input
+                    type="checkbox"
+                    value="${skill.id}"
+                    data-name="${escapeHtml(skill.name)}"
+                >
+
+                <span>
+                    ${escapeHtml(skill.name)}
+                </span>
+
+            </label>
+
+        `).join("");
+
+
+        /*
+         * Update the dropdown text whenever
+         * a checkbox is selected/unselected.
+         */
+
+        container
+            .querySelectorAll("input[type='checkbox']")
+            .forEach(checkbox => {
+
+                checkbox.addEventListener(
+                    "change",
+                    updateSkillText
+                );
+
+            });
+
+    } catch (error) {
+
+        container.innerHTML =
+            '<span class="filter-error">Could not load skills.</span>';
+
+    }
+
+}
+
+
+/* =========================================================
+   UPDATE DROPDOWN TEXT
+   ========================================================= */
+
+function updateSkillText() {
+
+    const selected =
+        document.querySelectorAll(
+            "#skill-options input[type='checkbox']:checked"
+        );
+
+    const text =
+        document.getElementById(
+            "skill-dropdown-text"
+        );
+
+
+    if (selected.length === 0) {
+
+        text.textContent =
+            "Select skills";
+
+    } else if (selected.length === 1) {
+
+        text.textContent =
+            selected[0].dataset.name;
+
+    } else {
+
+        text.textContent =
+            `${selected.length} skills selected`;
+
+    }
+
+}
+
+
+/* =========================================================
+   OPEN / CLOSE DROPDOWN
+   ========================================================= */
+
+const dropdownButton =
+    document.getElementById(
+        "skill-dropdown-button"
+    );
+
+const dropdownMenu =
+    document.getElementById(
+        "skill-dropdown-menu"
+    );
+
+
+dropdownButton.addEventListener(
+    "click",
+    function(event) {
+
+        event.stopPropagation();
+
+        dropdownMenu.classList.toggle(
+            "show"
+        );
+
+    }
+);
+
+
+/*
+ * Clicking anywhere outside the dropdown
+ * closes it.
+ */
+
+document.addEventListener(
+    "click",
+    function(event) {
+
+        const dropdown =
+            document.querySelector(
+                ".skill-dropdown"
+            );
+
+        if (!dropdown.contains(event.target)) {
+
+            dropdownMenu.classList.remove(
+                "show"
+            );
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   LOAD JOBS
+   ========================================================= */
+
+async function loadJobs() {
+
+    const params =
+        new URLSearchParams();
+
+
+    /* Keyword */
+
+    const keyword =
+        document
+            .getElementById("keyword")
+            .value
+            .trim();
+
+    if (keyword) {
+
+        params.set(
+            "keyword",
+            keyword
+        );
+
+    }
+
+
+    /* Location */
+
+    const location =
+        document
+            .getElementById("location")
+            .value
+            .trim();
+
+    if (location) {
+
+        params.set(
+            "location",
+            location
+        );
+
+    }
+
+
+    /* Employment type */
+
+    const employmentType =
+        document
+            .getElementById("employment_type")
+            .value;
+
+    if (employmentType) {
+
+        params.set(
+            "employment_type",
+            employmentType
+        );
+
+    }
+
+
+    /* Skills */
+
+    const selectedSkills =
+        [
+            ...document.querySelectorAll(
+                "#skill-options input[type='checkbox']:checked"
+            )
+        ];
+
+
+    /*
+     * Our current backend supports one skill
+     * at a time.
+     *
+     * So for now we use the first selected skill.
+     */
+
+    if (selectedSkills.length > 0) {
+
+        params.set(
+            "skill",
+            selectedSkills[0].dataset.name
+        );
+
+    }
+
+
+    /* Open jobs */
+
+    if (
+        document.getElementById("open").checked
+    ) {
+
+        params.set(
+            "open",
+            "true"
+        );
+
+    }
+
+
+    const box =
+        document.getElementById(
+            "job-results"
+        );
+
+
+    box.innerHTML =
+        '<div class="loading">Searching…</div>';
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/startups/jobs/?" +
+                params.toString()
+            );
+
+
+        const jobs =
+            await response.json();
+
+
+        box.innerHTML =
+            jobs.length
+                ? jobs.map(jobCard).join("")
+                : emptyBox(
+                    "No jobs matched those filters."
+                );
+
+
+    } catch (error) {
+
+        box.innerHTML =
+            errorBox(
+                "Could not load jobs."
+            );
+
+    }
+
+}
+
+
+/* =========================================================
+   INITIAL PAGE LOAD
+   ========================================================= */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    async function() {
+
+        await loadSkills();
+
+        await loadJobs();
+
+    }
+);
+
+</script>
+
+{% endblock %}

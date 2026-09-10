@@ -1,0 +1,72 @@
+{% extends "frontend/base.html" %}
+{% block title %}Explore Startups — Startly{% endblock %}
+
+{% block content %}
+<section class="dashboard-header">
+    <div>
+        <div class="eyebrow">DISCOVER</div>
+        <h1>Explore startups.</h1>
+        <p>Find teams by what they build, where they are, and what skills they need.</p>
+    </div>
+</section>
+
+<section class="filter-panel card">
+    <div class="filter-grid">
+        <div>
+            <label>Keyword</label>
+            <input id="keyword" placeholder="e.g. fintech, developer tools">
+        </div>
+        <div>
+            <label>Skill</label>
+            <input id="skill" placeholder="e.g. Python">
+        </div>
+        <div>
+            <label>Industry</label>
+            <input id="industry" placeholder="e.g. FinTech">
+        </div>
+        <div>
+            <label>Hiring</label>
+            <select id="hiring">
+                <option value="">Any</option>
+                <option value="true">Hiring</option>
+                <option value="false">Not hiring</option>
+            </select>
+        </div>
+    </div>
+    <button class="btn btn-primary" onclick="loadStartups()">Search startups</button>
+</section>
+
+<section class="section compact">
+    <div id="startup-results" class="card-grid">
+        <div class="loading">Loading startups…</div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadStartups() {
+    const params = new URLSearchParams();
+    const fields = ["keyword", "skill", "industry", "hiring"];
+    fields.forEach(id => {
+        const value = document.getElementById(id).value.trim();
+        if (value) params.set(id, value);
+    });
+
+    const box = document.getElementById("startup-results");
+    box.innerHTML = '<div class="loading">Searching…</div>';
+
+    try {
+        const response = await fetch("/api/startups/?" + params.toString());
+        const startups = await response.json();
+        box.innerHTML = startups.length
+            ? startups.map(startupCard).join("")
+            : emptyBox("No startups matched those filters.");
+    } catch (error) {
+        box.innerHTML = errorBox("Could not load startups.");
+    }
+}
+
+document.addEventListener("DOMContentLoaded", loadStartups);
+</script>
+{% endblock %}

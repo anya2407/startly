@@ -1,0 +1,65 @@
+{% extends "frontend/base.html" %}
+{% block title %}Startup Details — Startly{% endblock %}
+
+{% block content %}
+<section id="startup-detail" class="detail-shell">
+    <div class="loading">Loading startup…</div>
+</section>
+
+<section class="section compact">
+    <div class="section-heading">
+        <div>
+            <div class="eyebrow">OPENINGS</div>
+            <h2>Jobs at this startup</h2>
+        </div>
+    </div>
+    <div id="startup-jobs" class="card-grid"></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const startupId = {{ startup_id }};
+
+async function loadStartupDetail() {
+    const detail = document.getElementById("startup-detail");
+    const jobsBox = document.getElementById("startup-jobs");
+
+    try {
+        const [startupRes, skillsRes, jobsRes] = await Promise.all([
+            fetch(`/api/startups/${startupId}/`),
+            fetch(`/api/startups/${startupId}/skills/`),
+            fetch(`/api/startups/${startupId}/jobs/`)
+        ]);
+
+        const startup = await startupRes.json();
+        const skills = await skillsRes.json();
+        const jobs = await jobsRes.json();
+
+        detail.innerHTML = `
+            <div class="eyebrow">${escapeHtml(startup.industry || "STARTUP")}</div>
+            <h1>${escapeHtml(startup.name)}</h1>
+            <p class="detail-copy">${escapeHtml(startup.description)}</p>
+            <div class="meta-row">
+                ${startup.location ? `<span>📍 ${escapeHtml(startup.location)}</span>` : ""}
+                ${startup.website ? `<a href="${escapeHtml(startup.website)}" target="_blank" rel="noopener">Website ↗</a>` : ""}
+                <span class="status ${startup.is_hiring ? "status-open" : "status-muted"}">
+                    ${startup.is_hiring ? "Hiring" : "Not hiring"}
+                </span>
+            </div>
+            <div class="tag-list">
+                ${skills.map(s => `<span class="tag">${escapeHtml(s.skill.name)}</span>`).join("")}
+            </div>
+        `;
+
+        jobsBox.innerHTML = jobs.length
+            ? jobs.map(jobCard).join("")
+            : emptyBox("No openings at this startup.");
+    } catch (error) {
+        detail.innerHTML = errorBox("Could not load this startup.");
+    }
+}
+
+document.addEventListener("DOMContentLoaded", loadStartupDetail);
+</script>
+{% endblock %}
