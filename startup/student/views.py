@@ -1,6 +1,10 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+
+from startups.models import JobApplication
+from startups.serializers import JobApplicationSerializer
 
 from .models import Student
 from .serializers import (
@@ -206,3 +210,30 @@ class StudentSkillDeleteView(APIView):
             {"message": "Skill removed successfully"},
             status=status.HTTP_204_NO_CONTENT
         )
+
+class MyStudentApplicationsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        try:
+            student = Student.objects.get(user=request.user)
+        except Student.DoesNotExist:
+            return Response(
+                {"detail": "No student profile found for this account."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        applications = JobApplication.objects.filter(
+            student=student
+        ).select_related(
+            "job",
+            "job__startup"
+        ).order_by("-applied_at")
+
+        serializer = JobApplicationSerializer(
+            applications,
+            many=True
+        )
+
+        return Response(serializer.data)

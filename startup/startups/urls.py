@@ -13,6 +13,9 @@ from .views import (
     JobApplicationCreateView,
     StartupApplicationListView,
     JobApplicationStatusView,
+    IndustryListView,
+    MyStartupView,
+    MyStartupApplicationsView,
 )
 
 
@@ -80,11 +83,23 @@ urlpatterns = [
         JobSkillView.as_view(),
         name="job-skills"
     ),
+    path(
+    "my-applications/",
+    MyStartupApplicationsView.as_view(),
+    name="my-startup-applications"
+    ),
 
     path(
         "jobs/<int:job_id>/skills/<int:skill_id>/",
         JobSkillDeleteView.as_view(),
         name="job-skill-delete"
     ),
+    path(
+    "industries/",
+    IndustryListView.as_view(),
+    name="industry-list"
+    ),
+    path("me/", MyStartupView.as_view(), name="my-startup"),
+    
     
 ]

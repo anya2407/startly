@@ -2,6 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from student.models import Student, Skill
+from rest_framework.permissions import IsAuthenticated
 from .models import (
     Startup,
     StartupSkill,
@@ -436,60 +437,72 @@ class JobListView(APIView):
         return Response(serializer.data)
 
 class JobApplicationCreateView(APIView):
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, job_id):
 
-        # Check that the job exists
         try:
-            job = JobOpening.objects.get(id=job_id)
-        except JobOpening.DoesNotExist:
-            return Response(
-                {"error": "Job opening not found"},
-                status=status.HTTP_404_NOT_FOUND
+            student = Student.objects.get(
+                user=request.user
             )
-
-        # Check that the job is still open
-        if not job.is_open:
-            return Response(
-                {"error": "This job is no longer accepting applications"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Get student
-        student_id = request.data.get("student_id")
-
-        if not student_id:
-            return Response(
-                {"error": "student_id is required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            student = Student.objects.get(id=student_id)
         except Student.DoesNotExist:
             return Response(
-                {"error": "Student not found"},
+                {
+                    "error":
+                    "No student profile found for this account."
+                },
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # Check if student already applied
+        try:
+            job = JobOpening.objects.get(
+                id=job_id
+            )
+        except JobOpening.DoesNotExist:
+            return Response(
+                {
+                    "error":
+                    "Job not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if not job.is_open:
+            return Response(
+                {
+                    "error":
+                    "This job is no longer open."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         if JobApplication.objects.filter(
             student=student,
             job=job
         ).exists():
+
             return Response(
-                {"error": "You have already applied to this job"},
+                {
+                    "error":
+                    "You have already applied to this job."
+                },
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Create application
+        cover_message = request.data.get(
+            "cover_message",
+            ""
+        )
+
         application = JobApplication.objects.create(
             student=student,
             job=job,
-            cover_message=request.data.get("cover_message", "")
+            cover_message=cover_message
         )
 
-        serializer = JobApplicationSerializer(application)
+        serializer = JobApplicationSerializer(
+            application
+        )
 
         return Response(
             serializer.data,
@@ -523,6 +536,7 @@ class StartupApplicationListView(APIView):
         return Response(serializer.data)
 
 class JobApplicationStatusView(APIView):
+    permission_classes = [IsAuthenticated]
 
     def put(self, request, application_id):
 
@@ -538,6 +552,14 @@ class JobApplicationStatusView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        # Make sure this application belongs to
+        # the startup owned by the logged-in user
+        if application.job.startup.owner != request.user:
+            return Response(
+                {"error": "You are not allowed to modify this application"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         new_status = request.data.get("status")
 
         if not new_status:
@@ -550,9 +572,7 @@ class JobApplicationStatusView(APIView):
 
         if new_status not in allowed_statuses:
             return Response(
-                {
-                    "error": "Status must be ACCEPTED or REJECTED"
-                },
+                {"error": "Status must be ACCEPTED or REJECTED"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -568,5 +588,51 @@ class JobApplicationStatusView(APIView):
         application.save()
 
         serializer = JobApplicationSerializer(application)
+
+        return Response(serializer.data)
+
+class IndustryListView(APIView):
+
+    def get(self, request):
+
+        industries = (
+            Startup.objects
+            .exclude(industry="")
+            .exclude(industry__isnull=True)
+            .values_list("industry", flat=True)
+            .distinct()
+            .order_by("industry")
+        )
+
+        return Response(list(industries))
+
+class MyStartupView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        startup = Startup.objects.get(owner=request.user)
+        serializer = StartupSerializer(startup)
+        return Response(serializer.data)
+
+class MyStartupApplicationsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            startup = Startup.objects.get(owner=request.user)
+        except Startup.DoesNotExist:
+            return Response(
+                {"detail": "No startup profile found for this account."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        applications = JobApplication.objects.filter(
+            job__startup=startup
+        ).order_by("-applied_at")
+
+        serializer = JobApplicationSerializer(
+            applications,
+            many=True
+        )
 
         return Response(serializer.data)

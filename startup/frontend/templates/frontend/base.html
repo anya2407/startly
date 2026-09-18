@@ -1,33 +1,114 @@
 {% load static %}
+
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Startly{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'frontend/css/style.css' %}">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        {% block title %}Startly{% endblock %}
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="{% static 'frontend/css/style.css' %}"
+    >
+
 </head>
+
 <body>
-    <nav class="navbar">
-        <a class="brand" href="/">Startly<span>.</span></a>
-        <div class="nav-links">
-            <a href="/startups/">Startups</a>
-            <a href="/jobs/">Jobs</a>
-            <a href="/student/">Student Dashboard</a>
-            <a href="/startup-dashboard/">Startup Dashboard</a>
-        </div>
-    </nav>
+
+    {% if request.path != "/login/" and request.path != "/register/" %}
+
+        {% if request.user.is_authenticated %}
+
+            <nav class="navbar">
+
+                <a
+                    class="brand"
+                    href="/"
+                >
+                    Startly<span>.</span>
+                </a>
+
+                <div class="nav-links">
+
+                    <a href="/startups/">
+                        Startups
+                    </a>
+
+                    <a href="/jobs/">
+                        Jobs
+                    </a>
+
+                    {% if request.user.student %}
+
+                        <a href="/student/">
+                            Dashboard
+                        </a>
+
+                    {% elif request.user.startup %}
+
+                        <a href="/startup-dashboard/">
+                            Dashboard
+                        </a>
+
+                    {% endif %}
+
+                    <a href="/logout/">
+                        Log out
+                    </a>
+
+                </div>
+
+            </nav>
+
+        {% endif %}
+
+    {% endif %}
+
 
     <main class="page">
-        {% block content %}{% endblock %}
+
+        {% block content %}
+        {% endblock %}
+
     </main>
 
-    <footer class="footer">
-        <span>Startly</span>
-        <span>Students × Startups</span>
-    </footer>
+
+    {% if request.path != "/login/" and request.path != "/register/" %}
+
+        {% if request.user.is_authenticated %}
+
+            <footer class="footer">
+
+                <span>
+                    Startly
+                </span>
+
+                <span>
+                    Students × Startups
+                </span>
+
+            </footer>
+
+        {% endif %}
+
+    {% endif %}
+
 
     <script src="{% static 'frontend/js/app.js' %}"></script>
-    {% block scripts %}{% endblock %}
+
+    {% block scripts %}
+    {% endblock %}
+
 </body>
+
 </html>

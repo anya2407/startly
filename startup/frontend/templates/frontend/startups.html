@@ -1,72 +1,611 @@
 {% extends "frontend/base.html" %}
+
 {% block title %}Explore Startups — Startly{% endblock %}
 
 {% block content %}
+
 <section class="dashboard-header">
+
     <div>
         <div class="eyebrow">DISCOVER</div>
         <h1>Explore startups.</h1>
         <p>Find teams by what they build, where they are, and what skills they need.</p>
     </div>
+
 </section>
 
 <section class="filter-panel card">
+
     <div class="filter-grid">
+
+        <!-- Keyword -->
         <div>
             <label>Keyword</label>
             <input id="keyword" placeholder="e.g. fintech, developer tools">
         </div>
-        <div>
-            <label>Skill</label>
-            <input id="skill" placeholder="e.g. Python">
+
+        <!-- Skills -->
+        <div class="skill-filter">
+
+            <label>Skills</label>
+
+            <div class="skill-dropdown">
+
+                <button
+                    type="button"
+                    id="skill-dropdown-button"
+                    class="skill-dropdown-button"
+                >
+                    <span id="skill-dropdown-text">Select skills</span>
+                    <span class="dropdown-arrow">▼</span>
+                </button>
+
+                <div
+                    id="skill-dropdown-menu"
+                    class="skill-dropdown-menu"
+                >
+
+                    <div id="skill-options" class="checkbox-list">
+
+                        <span class="filter-loading">
+                            Loading skills...
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
         </div>
-        <div>
+
+        <!-- Industry -->
+        <div class="skill-filter">
+
             <label>Industry</label>
-            <input id="industry" placeholder="e.g. FinTech">
+
+            <div class="skill-dropdown">
+
+                <button
+                    type="button"
+                    id="industry-dropdown-button"
+                    class="skill-dropdown-button"
+                >
+                    <span id="industry-dropdown-text">Select industry</span>
+                    <span class="dropdown-arrow">▼</span>
+                </button>
+
+                <div
+                    id="industry-dropdown-menu"
+                    class="skill-dropdown-menu"
+                >
+
+                    <div id="industry-options" class="checkbox-list">
+
+                        <span class="filter-loading">
+                            Loading industries...
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
         </div>
+
+        <!-- Hiring -->
         <div>
+
             <label>Hiring</label>
+
             <select id="hiring">
                 <option value="">Any</option>
                 <option value="true">Hiring</option>
                 <option value="false">Not hiring</option>
             </select>
+
         </div>
+
     </div>
-    <button class="btn btn-primary" onclick="loadStartups()">Search startups</button>
+
+    <button
+        class="btn btn-primary"
+        onclick="loadStartups()"
+    >
+        Search startups
+    </button>
+
 </section>
 
 <section class="section compact">
+
     <div id="startup-results" class="card-grid">
-        <div class="loading">Loading startups…</div>
+
+        <div class="loading">
+            Loading startups…
+        </div>
+
     </div>
+
 </section>
+
 {% endblock %}
 
-{% block scripts %}
-<script>
-async function loadStartups() {
-    const params = new URLSearchParams();
-    const fields = ["keyword", "skill", "industry", "hiring"];
-    fields.forEach(id => {
-        const value = document.getElementById(id).value.trim();
-        if (value) params.set(id, value);
-    });
 
-    const box = document.getElementById("startup-results");
-    box.innerHTML = '<div class="loading">Searching…</div>';
+{% block scripts %}
+
+<script>
+
+/*
+ * ============================================
+ * LOAD SKILLS FROM DATABASE
+ * ============================================
+ */
+
+async function loadSkills() {
+
+    const optionsBox =
+        document.getElementById("skill-options");
 
     try {
-        const response = await fetch("/api/startups/?" + params.toString());
-        const startups = await response.json();
-        box.innerHTML = startups.length
-            ? startups.map(startupCard).join("")
-            : emptyBox("No startups matched those filters.");
+
+        const response =
+            await fetch("/api/students/skills/");
+
+        if (!response.ok) {
+            throw new Error("Could not load skills");
+        }
+
+        const skills =
+            await response.json();
+
+        if (!skills.length) {
+
+            optionsBox.innerHTML =
+                '<span class="filter-loading">No skills available.</span>';
+
+            return;
+        }
+
+        optionsBox.innerHTML =
+            skills.map(skill => {
+
+                return `
+                    <label class="skill-checkbox">
+
+                        <input
+                            type="checkbox"
+                            value="${escapeHtml(skill.name)}"
+                            data-name="${escapeHtml(skill.name)}"
+                        >
+
+                        <span>
+                            ${escapeHtml(skill.name)}
+                        </span>
+
+                    </label>
+                `;
+
+            }).join("");
+
+
+        optionsBox
+            .querySelectorAll('input[type="checkbox"]')
+            .forEach(checkbox => {
+
+                checkbox.addEventListener(
+                    "change",
+                    updateSkillText
+                );
+
+            });
+
     } catch (error) {
-        box.innerHTML = errorBox("Could not load startups.");
+
+        optionsBox.innerHTML =
+            '<span class="filter-loading">Could not load skills.</span>';
+
     }
+
 }
 
-document.addEventListener("DOMContentLoaded", loadStartups);
+
+/*
+ * ============================================
+ * UPDATE SKILL DROPDOWN TEXT
+ * ============================================
+ */
+
+function updateSkillText() {
+
+    const selectedSkills =
+        document.querySelectorAll(
+            '#skill-options input[type="checkbox"]:checked'
+        );
+
+    const text =
+        document.getElementById("skill-dropdown-text");
+
+
+    if (selectedSkills.length === 0) {
+
+        text.textContent = "Select skills";
+
+    } else if (selectedSkills.length === 1) {
+
+        text.textContent =
+            selectedSkills[0].dataset.name;
+
+    } else {
+
+        text.textContent =
+            `${selectedSkills.length} skills selected`;
+
+    }
+
+}
+
+
+/*
+ * ============================================
+ * LOAD INDUSTRIES FROM DATABASE
+ * ============================================
+ */
+
+async function loadIndustries() {
+
+    const optionsBox =
+        document.getElementById("industry-options");
+
+    try {
+
+        const response =
+            await fetch("/api/startups/industries/");
+
+        if (!response.ok) {
+            throw new Error("Could not load industries");
+        }
+
+        const industries =
+            await response.json();
+
+        if (!industries.length) {
+
+            optionsBox.innerHTML =
+                '<span class="filter-loading">No industries available.</span>';
+
+            return;
+        }
+
+        optionsBox.innerHTML =
+            industries.map(industry => {
+
+                return `
+                    <label class="skill-checkbox">
+
+                        <input
+                            type="checkbox"
+                            value="${escapeHtml(industry)}"
+                            data-name="${escapeHtml(industry)}"
+                        >
+
+                        <span>
+                            ${escapeHtml(industry)}
+                        </span>
+
+                    </label>
+                `;
+
+            }).join("");
+
+
+        optionsBox
+            .querySelectorAll('input[type="checkbox"]')
+            .forEach(checkbox => {
+
+                checkbox.addEventListener(
+                    "change",
+                    updateIndustryText
+                );
+
+            });
+
+    } catch (error) {
+
+        optionsBox.innerHTML =
+            '<span class="filter-loading">Could not load industries.</span>';
+
+    }
+
+}
+
+
+/*
+ * ============================================
+ * UPDATE INDUSTRY DROPDOWN TEXT
+ * ============================================
+ */
+
+function updateIndustryText() {
+
+    const selectedIndustries =
+        document.querySelectorAll(
+            '#industry-options input[type="checkbox"]:checked'
+        );
+
+    const text =
+        document.getElementById("industry-dropdown-text");
+
+
+    if (selectedIndustries.length === 0) {
+
+        text.textContent = "Select industry";
+
+    } else if (selectedIndustries.length === 1) {
+
+        text.textContent =
+            selectedIndustries[0].dataset.name;
+
+    } else {
+
+        text.textContent =
+            `${selectedIndustries.length} industries selected`;
+
+    }
+
+}
+
+
+/*
+ * ============================================
+ * SKILL DROPDOWN
+ * ============================================
+ */
+
+const skillDropdownButton =
+    document.getElementById("skill-dropdown-button");
+
+const skillDropdownMenu =
+    document.getElementById("skill-dropdown-menu");
+
+
+skillDropdownButton.addEventListener(
+    "click",
+    function () {
+
+        skillDropdownMenu.classList.toggle("show");
+
+    }
+);
+
+
+/*
+ * ============================================
+ * INDUSTRY DROPDOWN
+ * ============================================
+ */
+
+const industryDropdownButton =
+    document.getElementById("industry-dropdown-button");
+
+const industryDropdownMenu =
+    document.getElementById("industry-dropdown-menu");
+
+
+industryDropdownButton.addEventListener(
+    "click",
+    function () {
+
+        industryDropdownMenu.classList.toggle("show");
+
+    }
+);
+
+
+/*
+ * ============================================
+ * CLOSE DROPDOWNS WHEN CLICKING OUTSIDE
+ * ============================================
+ */
+
+document.addEventListener("click", function (event) {
+
+    const skillDropdown =
+        document.querySelector(
+            "#skill-dropdown-button"
+        ).closest(".skill-dropdown");
+
+
+    const industryDropdown =
+        document.querySelector(
+            "#industry-dropdown-button"
+        ).closest(".skill-dropdown");
+
+
+    if (!skillDropdown.contains(event.target)) {
+
+        skillDropdownMenu.classList.remove("show");
+
+    }
+
+
+    if (!industryDropdown.contains(event.target)) {
+
+        industryDropdownMenu.classList.remove("show");
+
+    }
+
+});
+
+
+/*
+ * ============================================
+ * LOAD STARTUPS
+ * ============================================
+ */
+
+async function loadStartups() {
+
+    const params =
+        new URLSearchParams();
+
+
+    /*
+     * Keyword
+     */
+
+    const keyword =
+        document.getElementById("keyword")
+            .value
+            .trim();
+
+    if (keyword) {
+
+        params.set(
+            "keyword",
+            keyword
+        );
+
+    }
+
+
+    /*
+     * Skills
+     */
+
+    const selectedSkills =
+        document.querySelectorAll(
+            '#skill-options input[type="checkbox"]:checked'
+        );
+
+    if (selectedSkills.length > 0) {
+
+        params.set(
+            "skill",
+            selectedSkills[0].dataset.name
+        );
+
+    }
+
+
+    /*
+     * Industry
+     */
+
+    const selectedIndustries =
+        document.querySelectorAll(
+            '#industry-options input[type="checkbox"]:checked'
+        );
+
+    if (selectedIndustries.length > 0) {
+
+        params.set(
+            "industry",
+            selectedIndustries[0].dataset.name
+        );
+
+    }
+
+
+    /*
+     * Hiring
+     */
+
+    const hiring =
+        document.getElementById("hiring")
+            .value;
+
+    if (hiring) {
+
+        params.set(
+            "hiring",
+            hiring
+        );
+
+    }
+
+
+    /*
+     * Show loading
+     */
+
+    const box =
+        document.getElementById(
+            "startup-results"
+        );
+
+    box.innerHTML =
+        '<div class="loading">Searching…</div>';
+
+
+    /*
+     * Fetch startups
+     */
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/startups/?" +
+                params.toString()
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Failed to load startups"
+            );
+
+        }
+
+
+        const startups =
+            await response.json();
+
+
+        /*
+         * Render results
+         */
+
+        box.innerHTML =
+            startups.length
+                ? startups.map(startupCard).join("")
+                : emptyBox(
+                    "No startups matched those filters."
+                );
+
+
+    } catch (error) {
+
+        box.innerHTML =
+            errorBox(
+                "Could not load startups."
+            );
+
+    }
+
+}
+
+
+/*
+ * ============================================
+ * INITIALIZE
+ * ============================================
+ */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        loadSkills();
+        loadIndustries();
+        loadStartups();
+
+    }
+);
+
 </script>
+
 {% endblock %}

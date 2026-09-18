@@ -6,6 +6,7 @@ from .views import (
     StudentSkillListView,
     StudentSkillDeleteView,
     SkillListView,
+    MyStudentApplicationsView,
 )
 
 urlpatterns = [
@@ -32,4 +33,9 @@ urlpatterns = [
         name="student-skill-delete"
     ),
     path("skills/", SkillListView.as_view(), name="skill-list"),
+    path(
+    "my-applications/",
+    MyStudentApplicationsView.as_view(),
+    name="my-student-applications"
+    ),
 ]

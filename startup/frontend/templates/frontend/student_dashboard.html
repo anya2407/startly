@@ -1,73 +1,351 @@
 {% extends "frontend/base.html" %}
+
 {% block title %}Student Dashboard — Startly{% endblock %}
 
 {% block content %}
+
 <section class="dashboard-header">
+
     <div>
-        <div class="eyebrow">STUDENT DASHBOARD</div>
-        <h1>Find your next opportunity.</h1>
-        <p>Browse jobs and startups using the skills you already have.</p>
+
+        <div class="eyebrow">
+            STUDENT DASHBOARD
+        </div>
+
+        <h1>
+            Find your next opportunity.
+        </h1>
+
+        <p>
+            Browse jobs and startups using the skills you already have.
+        </p>
+
     </div>
-    <div class="id-control">
-        <label for="student-id">Student ID</label>
-        <input id="student-id" type="number" min="1" value="1">
-        <button class="btn btn-primary btn-small" onclick="saveStudentId()">Save</button>
-    </div>
+
 </section>
 
-<section class="section compact">
-    <div class="section-heading">
-        <div>
-            <div class="eyebrow">JOBS</div>
-            <h2>Recommended starting points</h2>
-        </div>
-        <a class="text-link" href="/jobs/">View all jobs →</a>
-    </div>
-    <div id="student-jobs" class="card-grid">
-        <div class="loading">Loading jobs…</div>
-    </div>
-</section>
+
+<!-- =====================================================
+     MY APPLICATIONS
+     ===================================================== -->
 
 <section class="section compact">
+
     <div class="section-heading">
+
         <div>
-            <div class="eyebrow">STARTUPS</div>
-            <h2>Teams worth exploring</h2>
+
+            <div class="eyebrow">
+                APPLICATIONS
+            </div>
+
+            <h2>
+                My applications
+            </h2>
+
         </div>
-        <a class="text-link" href="/startups/">View all startups →</a>
+
     </div>
-    <div id="student-startups" class="card-grid">
-        <div class="loading">Loading startups…</div>
+
+
+    <div
+        id="student-applications"
+        class="card-grid"
+    >
+
+        <div class="loading">
+            Loading applications…
+        </div>
+
     </div>
+
 </section>
+
+
+<!-- =====================================================
+     JOBS
+     ===================================================== -->
+
+<section class="section compact">
+
+    <div class="section-heading">
+
+        <div>
+
+            <div class="eyebrow">
+                JOBS
+            </div>
+
+            <h2>
+                Recommended starting points
+            </h2>
+
+        </div>
+
+        <a
+            class="text-link"
+            href="/jobs/"
+        >
+            View all jobs →
+        </a>
+
+    </div>
+
+
+    <div
+        id="student-jobs"
+        class="card-grid"
+    >
+
+        <div class="loading">
+            Loading jobs…
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     STARTUPS
+     ===================================================== -->
+
+<section class="section compact">
+
+    <div class="section-heading">
+
+        <div>
+
+            <div class="eyebrow">
+                STARTUPS
+            </div>
+
+            <h2>
+                Teams worth exploring
+            </h2>
+
+        </div>
+
+        <a
+            class="text-link"
+            href="/startups/"
+        >
+            View all startups →
+        </a>
+
+    </div>
+
+
+    <div
+        id="student-startups"
+        class="card-grid"
+    >
+
+        <div class="loading">
+            Loading startups…
+        </div>
+
+    </div>
+
+</section>
+
 {% endblock %}
 
+
 {% block scripts %}
+
 <script>
-async function loadStudentDashboard() {
-    const jobsBox = document.getElementById("student-jobs");
-    const startupsBox = document.getElementById("student-startups");
 
-    try {
-        const [jobsRes, startupsRes] = await Promise.all([
-            fetch("/api/startups/jobs/?open=true"),
-            fetch("/api/startups/")
-        ]);
-        const jobs = await jobsRes.json();
-        const startups = await startupsRes.json();
 
-        jobsBox.innerHTML = jobs.slice(0, 4).map(jobCard).join("");
-        startupsBox.innerHTML = startups.slice(0, 4).map(startupCard).join("");
-    } catch (error) {
-        jobsBox.innerHTML = errorBox("Could not load jobs.");
-        startupsBox.innerHTML = errorBox("Could not load startups.");
+/* =========================================================
+   APPLICATION STATUS
+   ========================================================= */
+
+function getApplicationStatusClass(status) {
+
+    if (status === "ACCEPTED") {
+        return "status-open";
     }
+
+    if (status === "REJECTED") {
+        return "status-rejected";
+    }
+
+    return "status-pending";
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-    const saved = localStorage.getItem("startlyStudentId");
-    if (saved) document.getElementById("student-id").value = saved;
-    loadStudentDashboard();
-});
+
+/* =========================================================
+   LOAD STUDENT DASHBOARD
+   ========================================================= */
+
+async function loadStudentDashboard() {
+
+    const jobsBox =
+        document.getElementById(
+            "student-jobs"
+        );
+
+    const applicationsBox =
+        document.getElementById(
+            "student-applications"
+        );
+
+    const startupsBox =
+        document.getElementById(
+            "student-startups"
+        );
+
+
+    try {
+
+        const [
+            jobsRes,
+            startupsRes,
+            applicationsRes
+        ] = await Promise.all([
+
+            fetch(
+                "/api/startups/jobs/?open=true"
+            ),
+
+            fetch(
+                "/api/startups/"
+            ),
+
+            fetch(
+                "/api/students/my-applications/"
+            )
+
+        ]);
+
+
+        const jobs =
+            await jobsRes.json();
+
+        const startups =
+            await startupsRes.json();
+
+        const applications =
+            await applicationsRes.json();
+
+
+        /* =================================================
+           MY APPLICATIONS
+           ================================================= */
+
+        applicationsBox.innerHTML =
+            applications.length
+
+                ? applications.map(
+                    application => `
+
+                        <div class="card application-card">
+
+                            <div class="eyebrow">
+                                ${escapeHtml(
+                                    application.job_title
+                                )}
+                            </div>
+
+                            <h3>
+                                ${escapeHtml(
+                                    application.startup_name
+                                )}
+                            </h3>
+
+                            <p>
+                                Application submitted
+                                for this position.
+                            </p>
+
+                            <div class="meta-row">
+
+                                <span
+                                    class="status ${
+                                        getApplicationStatusClass(
+                                            application.status
+                                        )
+                                    }"
+                                >
+                                    ${escapeHtml(
+                                        application.status
+                                    )}
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                    `
+                ).join("")
+
+                : emptyBox(
+                    "You haven't applied to any jobs yet."
+                );
+
+
+        /* =================================================
+           JOBS
+           ================================================= */
+
+        jobsBox.innerHTML =
+            jobs.length
+
+                ? jobs
+                    .slice(0, 4)
+                    .map(jobCard)
+                    .join("")
+
+                : emptyBox(
+                    "No open jobs available."
+                );
+
+
+        /* =================================================
+           STARTUPS
+           ================================================= */
+
+        startupsBox.innerHTML =
+            startups.length
+
+                ? startups
+                    .slice(0, 4)
+                    .map(startupCard)
+                    .join("")
+
+                : emptyBox(
+                    "No startups available."
+                );
+
+
+    } catch (error) {
+
+        applicationsBox.innerHTML =
+            errorBox(
+                "Could not load applications."
+            );
+
+        jobsBox.innerHTML =
+            errorBox(
+                "Could not load jobs."
+            );
+
+        startupsBox.innerHTML =
+            errorBox(
+                "Could not load startups."
+            );
+
+    }
+
+}
+
+
+document.addEventListener(
+    "DOMContentLoaded",
+    loadStudentDashboard
+);
+
 </script>
+
 {% endblock %}

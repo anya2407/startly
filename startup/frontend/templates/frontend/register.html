@@ -1,0 +1,618 @@
+{% extends "frontend/base.html" %}
+
+{% block title %}Create Account — Startly{% endblock %}
+
+{% block content %}
+
+<style>
+    .auth-page {
+        min-height: calc(100vh - 130px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 24px;
+    }
+
+    .auth-card {
+        width: 100%;
+        max-width: 620px;
+        padding: 42px;
+    }
+
+    .auth-card h1 {
+        font-size: 42px;
+        line-height: 1.05;
+        letter-spacing: -0.045em;
+        margin-bottom: 12px;
+    }
+
+    .auth-subtitle {
+        color: #667085;
+        font-size: 15px;
+        margin-bottom: 30px;
+    }
+
+    .account-type {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 30px;
+    }
+
+    .account-type label {
+        position: relative;
+        cursor: pointer;
+    }
+
+    .account-type input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .account-option {
+        display: block;
+        padding: 16px;
+        text-align: center;
+        border: 1px solid #d9dce3;
+        border-radius: 10px;
+        background: white;
+        color: #344054;
+        font-weight: 700;
+        transition: all 0.15s ease;
+    }
+
+    .account-type input:checked + .account-option {
+        border-color: #635bff;
+        background: #f4f2ff;
+        color: #635bff;
+        box-shadow: 0 0 0 2px rgba(99, 91, 255, 0.08);
+    }
+
+    .form-section {
+        margin-bottom: 28px;
+    }
+
+    .form-section-title {
+        font-size: 15px;
+        font-weight: 800;
+        color: #111827;
+        margin-bottom: 18px;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 13px;
+        font-weight: 700;
+        color: #344054;
+        margin-bottom: 7px;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+        width: 100%;
+        border: 1px solid #d9dce3;
+        background: white;
+        border-radius: 9px;
+        padding: 11px 12px;
+        font: inherit;
+        color: #111827;
+        outline: none;
+        box-sizing: border-box;
+    }
+
+    .form-group input {
+        height: 46px;
+    }
+
+    .form-group textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+        border-color: #635bff;
+        box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.1);
+    }
+
+    .auth-button {
+        width: 100%;
+        height: 46px;
+        margin-top: 4px;
+    }
+
+    .auth-footer {
+        margin-top: 24px;
+        text-align: center;
+        color: #667085;
+        font-size: 14px;
+    }
+
+    .auth-footer a {
+        color: #635bff;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .auth-footer a:hover {
+        text-decoration: underline;
+    }
+
+    .error-message {
+        padding: 12px 14px;
+        margin-bottom: 22px;
+        border-radius: 9px;
+        background: #fff0ee;
+        color: #b42318;
+        border: 1px solid #ffd0ca;
+        font-size: 13px;
+    }
+
+    @media (max-width: 700px) {
+
+        .auth-page {
+            padding: 40px 18px;
+        }
+
+        .auth-card {
+            padding: 30px 24px;
+        }
+
+        .auth-card h1 {
+            font-size: 34px;
+        }
+
+        .form-row {
+            grid-template-columns: 1fr;
+            gap: 0;
+        }
+
+        .account-type {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+
+<section class="auth-page">
+
+    <div class="auth-card card">
+
+        <div class="eyebrow">
+            GET STARTED
+        </div>
+
+        <h1>
+            Create your Startly account.
+        </h1>
+
+        <p class="auth-subtitle">
+            Join students and startups building what's next.
+        </p>
+
+
+        {% if error %}
+
+            <div class="error-message">
+                {{ error }}
+            </div>
+
+        {% endif %}
+
+
+        <!-- ACCOUNT TYPE -->
+
+        <div class="form-section">
+
+            <div class="form-section-title">
+                I am joining as
+            </div>
+
+            <div class="account-type">
+
+                <label>
+
+                    <input
+                        type="radio"
+                        name="account_type_selector"
+                        value="student"
+                        checked
+                        onchange="showAccountType('student')"
+                    >
+
+                    <span class="account-option">
+                        Student
+                    </span>
+
+                </label>
+
+
+                <label>
+
+                    <input
+                        type="radio"
+                        name="account_type_selector"
+                        value="startup"
+                        onchange="showAccountType('startup')"
+                    >
+
+                    <span class="account-option">
+                        Startup
+                    </span>
+
+                </label>
+
+            </div>
+
+        </div>
+
+
+        <form method="POST">
+
+            {% csrf_token %}
+
+            <!-- Hidden account type actually submitted -->
+
+            <input
+                type="hidden"
+                id="account_type"
+                name="account_type"
+                value="student"
+            >
+
+
+            <!-- ACCOUNT DETAILS -->
+
+            <div class="form-section">
+
+                <div class="form-section-title">
+                    Account details
+                </div>
+
+
+                <div class="form-row">
+
+                    <div class="form-group">
+
+                        <label for="first_name">
+                            First name
+                        </label>
+
+                        <input
+                            type="text"
+                            id="first_name"
+                            name="first_name"
+                            placeholder="First name"
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="last_name">
+                            Last name
+                        </label>
+
+                        <input
+                            type="text"
+                            id="last_name"
+                            name="last_name"
+                            placeholder="Last name"
+                        >
+
+                    </div>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="username">
+                        Username
+                    </label>
+
+                    <input
+                        type="text"
+                        id="username"
+                        name="username"
+                        placeholder="Choose a username"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-row">
+
+                    <div class="form-group">
+
+                        <label for="password">
+                            Password
+                        </label>
+
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            placeholder="Create a password"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="confirm_password">
+                            Confirm password
+                        </label>
+
+                        <input
+                            type="password"
+                            id="confirm_password"
+                            name="confirm_password"
+                            placeholder="Confirm password"
+                            required
+                        >
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- STUDENT DETAILS -->
+
+            <div
+                id="student-fields"
+                class="form-section"
+            >
+
+                <div class="form-section-title">
+                    Student details
+                </div>
+
+
+                <div class="form-row">
+
+                    <div class="form-group">
+
+                        <label for="college">
+                            College
+                        </label>
+
+                        <input
+                            type="text"
+                            id="college"
+                            name="college"
+                            placeholder="Your college"
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="course">
+                            Course
+                        </label>
+
+                        <input
+                            type="text"
+                            id="course"
+                            name="course"
+                            placeholder="e.g. B.Tech CSE"
+                        >
+
+                    </div>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="year">
+                        Year
+                    </label>
+
+                    <input
+                        type="number"
+                        id="year"
+                        name="year"
+                        min="1"
+                        max="10"
+                        placeholder="e.g. 3"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="bio">
+                        Bio
+                    </label>
+
+                    <textarea
+                        id="bio"
+                        name="bio"
+                        placeholder="Tell us a little about yourself..."
+                    ></textarea>
+
+                </div>
+
+            </div>
+
+
+            <!-- STARTUP DETAILS -->
+
+            <div
+                id="startup-fields"
+                class="form-section"
+                style="display: none;"
+            >
+
+                <div class="form-section-title">
+                    Startup details
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="startup_name">
+                        Startup name
+                    </label>
+
+                    <input
+                        type="text"
+                        id="startup_name"
+                        name="startup_name"
+                        placeholder="Your startup name"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="description">
+                        Description
+                    </label>
+
+                    <textarea
+                        id="description"
+                        name="description"
+                        placeholder="What is your startup building?"
+                    ></textarea>
+
+                </div>
+
+
+                <div class="form-row">
+
+                    <div class="form-group">
+
+                        <label for="website">
+                            Website
+                        </label>
+
+                        <input
+                            type="url"
+                            id="website"
+                            name="website"
+                            placeholder="https://..."
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="location">
+                            Location
+                        </label>
+
+                        <input
+                            type="text"
+                            id="location"
+                            name="location"
+                            placeholder="e.g. Bangalore"
+                        >
+
+                    </div>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="industry">
+                        Industry
+                    </label>
+
+                    <input
+                        type="text"
+                        id="industry"
+                        name="industry"
+                        placeholder="e.g. FinTech"
+                    >
+
+                </div>
+
+            </div>
+
+
+            <button
+                type="submit"
+                class="btn btn-primary auth-button"
+            >
+                Create account
+            </button>
+
+        </form>
+
+
+        <p class="auth-footer">
+
+            Already have an account?
+
+            <a href="/login/">
+                Log in
+            </a>
+
+        </p>
+
+    </div>
+
+</section>
+
+
+<script>
+
+function showAccountType(type) {
+
+    const studentFields =
+        document.getElementById("student-fields");
+
+    const startupFields =
+        document.getElementById("startup-fields");
+
+    const accountType =
+        document.getElementById("account_type");
+
+
+    accountType.value = type;
+
+
+    if (type === "student") {
+
+        studentFields.style.display = "block";
+        startupFields.style.display = "none";
+
+    } else {
+
+        studentFields.style.display = "none";
+        startupFields.style.display = "block";
+
+    }
+
+}
+
+</script>
+
+{% endblock %}

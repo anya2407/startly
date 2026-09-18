@@ -1,87 +1,214 @@
 {% extends "frontend/base.html" %}
+
 {% block title %}Applications — Startly{% endblock %}
 
 {% block content %}
+
 <section class="dashboard-header">
+
     <div>
         <div class="eyebrow">STARTUP APPLICATIONS</div>
         <h1>People who want to join your team.</h1>
-        <p>Review applications for all jobs belonging to this startup.</p>
+        <p>
+            Review applications for all jobs belonging to this startup.
+        </p>
     </div>
+
 </section>
+
 
 <section class="section compact">
+
     <div id="applications" class="application-list">
-        <div class="loading">Loading applications…</div>
+
+        <div class="loading">
+            Loading applications…
+        </div>
+
     </div>
+
 </section>
+
 {% endblock %}
 
+
 {% block scripts %}
+
 <script>
-const startupId = {{ startup_id }};
 
 async function loadApplications() {
-    const box = document.getElementById("applications");
+
+    const applicationsBox =
+        document.getElementById("applications");
 
     try {
-        const response = await fetch(`/api/startups/${startupId}/applications/`);
-        const applications = await response.json();
 
-        if (!applications.length) {
-            box.innerHTML = emptyBox("No applications yet.");
-            return;
-        }
-
-        box.innerHTML = applications.map(app => `
-            <article class="card application-card">
-                <div class="application-top">
-                    <div>
-                        <div class="eyebrow">${escapeHtml(app.job_title)}</div>
-                        <h2>${escapeHtml(app.student_name)}</h2>
-                    </div>
-                    <span class="status ${app.status === "PENDING" ? "status-pending" : app.status === "ACCEPTED" ? "status-open" : "status-muted"}">
-                        ${escapeHtml(app.status)}
-                    </span>
-                </div>
-                <div class="meta-row">
-                    <span>${escapeHtml(app.student_college)}</span>
-                    <span>${escapeHtml(app.student_course)}</span>
-                </div>
-                <p class="cover-message">${escapeHtml(app.cover_message || "No cover message.")}</p>
-                ${app.status === "PENDING" ? `
-                    <div class="application-actions">
-                        <button class="btn btn-primary btn-small" onclick="updateApplication(${app.id}, 'ACCEPTED')">Accept</button>
-                        <button class="btn btn-danger btn-small" onclick="updateApplication(${app.id}, 'REJECTED')">Reject</button>
-                    </div>
-                ` : ""}
-            </article>
-        `).join("");
-    } catch (error) {
-        box.innerHTML = errorBox("Could not load applications.");
-    }
-}
-
-async function updateApplication(applicationId, newStatus) {
-    try {
-        const response = await fetch(`/api/startups/applications/${applicationId}/status/`, {
-            method: "PUT",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({status: newStatus})
-        });
+        const response =
+            await fetch("/api/startups/my-applications/");
 
         if (!response.ok) {
-            const data = await response.json();
-            alert(data.error || "Could not update application.");
+            throw new Error("Could not load applications");
+        }
+
+        const applications =
+            await response.json();
+
+        if (!applications.length) {
+
+            applicationsBox.innerHTML =
+                emptyBox("No applications yet.");
+
             return;
         }
 
-        loadApplications();
+        applicationsBox.innerHTML =
+            applications.map(application => `
+
+                <div class="card">
+
+                    <div class="eyebrow">
+                        ${escapeHtml(
+                            application.job_title
+                        )}
+                    </div>
+
+                    <h3>
+                        ${escapeHtml(
+                            application.student_name
+                        )}
+                    </h3>
+
+                    <p>
+                        ${escapeHtml(
+                            application.student_college
+                        )}
+                        ·
+                        ${escapeHtml(
+                            application.student_course
+                        )}
+                    </p>
+
+                    ${
+                        application.cover_message
+                            ? `
+                                <p>
+                                    ${escapeHtml(
+                                        application.cover_message
+                                    )}
+                                </p>
+                              `
+                            : ""
+                    }
+
+                    <div class="meta-row">
+
+                        <span class="status">
+                            ${escapeHtml(
+                                application.status
+                            )}
+                        </span>
+
+                    </div>
+
+
+                    ${
+                        application.status === "PENDING"
+                            ? `
+                                <div class="dashboard-actions">
+
+                                    <button
+                                        class="btn btn-primary"
+                                        onclick="updateApplication(
+                                            ${application.id},
+                                            'ACCEPTED'
+                                        )"
+                                    >
+                                        Accept
+                                    </button>
+
+                                    <button
+                                        class="btn btn-secondary"
+                                        onclick="updateApplication(
+                                            ${application.id},
+                                            'REJECTED'
+                                        )"
+                                    >
+                                        Reject
+                                    </button>
+
+                                </div>
+                              `
+                            : ""
+                    }
+
+                </div>
+
+            `).join("");
+
     } catch (error) {
-        alert("Could not update application.");
+
+        applicationsBox.innerHTML =
+            errorBox(
+                "Could not load applications."
+            );
+
     }
+
 }
 
-document.addEventListener("DOMContentLoaded", loadApplications);
+
+async function updateApplication(
+    applicationId,
+    newStatus
+) {
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/startups/applications/${applicationId}/status/`,
+                {
+                    method: "PUT",
+
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        status: newStatus
+                    })
+                }
+            );
+
+        if (!response.ok) {
+
+            const data =
+                await response.json();
+
+            alert(
+                data.error ||
+                "Could not update application."
+            );
+
+            return;
+        }
+
+        await loadApplications();
+
+    } catch (error) {
+
+        alert("Could not update application.");
+
+    }
+
+}
+
+
+document.addEventListener(
+    "DOMContentLoaded",
+    loadApplications
+);
+
 </script>
+
 {% endblock %}

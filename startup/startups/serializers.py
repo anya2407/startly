@@ -48,13 +48,17 @@ class JobSkillSerializer(serializers.ModelSerializer):
         }
 
 class JobApplicationSerializer(serializers.ModelSerializer):
+
     student_name = serializers.SerializerMethodField()
     student_college = serializers.SerializerMethodField()
     student_course = serializers.SerializerMethodField()
+
     job_title = serializers.SerializerMethodField()
+    startup_name = serializers.SerializerMethodField()
 
     class Meta:
         model = JobApplication
+
         fields = [
             "id",
             "student",
@@ -63,11 +67,13 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             "student_course",
             "job",
             "job_title",
+            "startup_name",
             "cover_message",
             "status",
             "applied_at",
             "updated_at",
         ]
+
         read_only_fields = [
             "student",
             "job",
@@ -87,3 +93,6 @@ class JobApplicationSerializer(serializers.ModelSerializer):
 
     def get_job_title(self, obj):
         return obj.job.title
+
+    def get_startup_name(self, obj):
+        return obj.job.startup.name
