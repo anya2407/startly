@@ -40,21 +40,33 @@
 
                 <div class="nav-links">
 
-                    <a href="/startups/">
-                        Startups
-                    </a>
-
-                    <a href="/jobs/">
-                        Jobs
-                    </a>
-
                     {% if request.user.student %}
+
+                        <a href="/startups/">
+                            Startups
+                        </a>
+
+                        <a href="/jobs/">
+                            Jobs
+                        </a>
+
+                        <a href="/students/{{ request.user.student.id }}/">
+                            Profile
+                        </a>
 
                         <a href="/student/">
                             Dashboard
                         </a>
 
                     {% elif request.user.startup %}
+
+                        <a href="/students/">
+                            Students
+                        </a>
+
+                        <a href="/startup-dashboard/#job-opening-form">
+                            Post a job
+                        </a>
 
                         <a href="/startup-dashboard/">
                             Dashboard

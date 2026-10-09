@@ -1,0 +1,167 @@
+{% extends "frontend/base.html" %}
+
+{% block title %}Find Students — Startly{% endblock %}
+
+{% block content %}
+<section class="dashboard-header">
+    <div>
+        <div class="eyebrow">TALENT DIRECTORY</div>
+        <h1>Meet students ready to build.</h1>
+        <p>Search student profiles by name, education, bio, or skills.</p>
+    </div>
+</section>
+
+<section class="filter-panel card">
+    <div class="filter-grid">
+        <div>
+            <label for="student-keyword">Search</label>
+            <input id="student-keyword" placeholder="Name, course, college, or bio">
+        </div>
+        <div class="skill-filter">
+            <label>Skills</label>
+            <div class="skill-dropdown">
+                <button type="button" id="skill-dropdown-button" class="skill-dropdown-button">
+                    <span id="skill-dropdown-text">Select skills</span>
+                    <span class="dropdown-arrow">▼</span>
+                </button>
+                <div id="skill-dropdown-menu" class="skill-dropdown-menu">
+                    <div id="skill-options" class="checkbox-list">
+                        <span class="filter-loading">Loading skills…</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div>
+            <label class="checkbox-row" for="open-to-work">
+                <input id="open-to-work" type="checkbox" checked>
+                Open to work
+            </label>
+        </div>
+    </div>
+    <button class="btn btn-primary" type="button" onclick="loadStudents()">Search students</button>
+</section>
+
+<section class="section compact">
+    <div id="student-results" class="card-grid">
+        <div class="loading">Loading students…</div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const skillsBox = document.getElementById("skill-options");
+const skillDropdownMenu = document.getElementById("skill-dropdown-menu");
+
+function updateStudentSkillText() {
+    const selected = document.querySelectorAll(
+        "#skill-options input[type=checkbox]:checked"
+    );
+    const text = document.getElementById("skill-dropdown-text");
+    if (!selected.length) {
+        text.textContent = "Select skills";
+    } else if (selected.length === 1) {
+        text.textContent = selected[0].dataset.name;
+    } else {
+        text.textContent = `${selected.length} skills selected`;
+    }
+}
+
+async function loadStudentSkills() {
+    try {
+        const response = await fetch("/api/students/skills/");
+        if (!response.ok) {
+            throw new Error("Could not load skills.");
+        }
+        const skills = await response.json();
+        skillsBox.innerHTML = skills.map(skill => `
+            <label class="skill-checkbox">
+                <input type="checkbox" value="${escapeHtml(skill.name)}" data-name="${escapeHtml(skill.name)}">
+                <span>${escapeHtml(skill.name)}</span>
+            </label>
+        `).join("");
+        skillsBox.querySelectorAll("input").forEach(input =>
+            input.addEventListener("change", updateStudentSkillText)
+        );
+    } catch (error) {
+        skillsBox.innerHTML =
+            '<span class="filter-error">Could not load skills.</span>';
+    }
+}
+
+async function loadStudents() {
+    const params = new URLSearchParams();
+    const keyword = document.getElementById("student-keyword").value.trim();
+    if (keyword) {
+        params.set("keyword", keyword);
+    }
+    document.querySelectorAll(
+        "#skill-options input[type=checkbox]:checked"
+    ).forEach(skill => params.append("skill", skill.dataset.name));
+    if (document.getElementById("open-to-work").checked) {
+        params.set("open", "true");
+    }
+
+    const results = document.getElementById("student-results");
+    results.innerHTML = '<div class="loading">Searching students…</div>';
+    try {
+        const response = await fetch(`/api/students/?${params.toString()}`);
+        if (!response.ok) {
+            throw new Error("Could not search student profiles.");
+        }
+        const students = await response.json();
+        results.innerHTML = students.length
+            ? students.map(student => `
+                <article class="card result-card">
+                    <div class="student-result-heading">
+                        ${student.profile_picture
+                            ? `<img class="student-result-picture" src="${escapeHtml(student.profile_picture)}" alt="">`
+                            : `<div class="student-result-placeholder">${escapeHtml(student.name.slice(0, 1).toUpperCase())}</div>`
+                        }
+                        <div>
+                            <h3>${escapeHtml(student.name)}</h3>
+                            <p>${escapeHtml(student.course)} · Year ${escapeHtml(student.year)}</p>
+                            <p>${escapeHtml(student.college)}</p>
+                        </div>
+                    </div>
+                    <p>${escapeHtml(student.bio || "No introduction added yet.")}</p>
+                    <div class="tag-list">
+                        ${student.skills.map(skill => `<span class="tag">${escapeHtml(skill.name)}</span>`).join("")}
+                    </div>
+                    <div class="meta-row">
+                        <span class="status ${student.is_open_to_work ? "status-open" : "status-muted"}">
+                            ${student.is_open_to_work ? "Open to work" : "Not currently looking"}
+                        </span>
+                    </div>
+                    <a class="text-link" href="/students/${student.id}/">View profile →</a>
+                </article>
+            `).join("")
+            : emptyBox("No student profiles matched those filters.");
+    } catch (error) {
+        results.innerHTML = errorBox(error.message || "Could not load students.");
+    }
+}
+
+document.getElementById("skill-dropdown-button").addEventListener("click", event => {
+    event.stopPropagation();
+    skillDropdownMenu.classList.toggle("show");
+});
+
+document.addEventListener("click", event => {
+    if (!event.target.closest(".skill-dropdown")) {
+        skillDropdownMenu.classList.remove("show");
+    }
+});
+
+document.getElementById("student-keyword").addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+        loadStudents();
+    }
+});
+
+document.addEventListener("DOMContentLoaded", async () => {
+    await loadStudentSkills();
+    await loadStudents();
+});
+</script>
+{% endblock %}

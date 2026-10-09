@@ -13,6 +13,7 @@ class StartupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Startup
         fields = "__all__"
+        read_only_fields = ["owner"]
 
 
 class StartupSkillSerializer(serializers.ModelSerializer):
@@ -33,6 +34,7 @@ class JobOpeningSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobOpening
         fields = "__all__"
+        read_only_fields = ["startup"]
 
 class JobSkillSerializer(serializers.ModelSerializer):
     skill = serializers.SerializerMethodField()
@@ -49,12 +51,32 @@ class JobSkillSerializer(serializers.ModelSerializer):
 
 class JobApplicationSerializer(serializers.ModelSerializer):
 
+    applicant_name = serializers.CharField(max_length=200)
+    applicant_email = serializers.EmailField()
+    cover_message = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=2000
+    )
     student_name = serializers.SerializerMethodField()
     student_college = serializers.SerializerMethodField()
     student_course = serializers.SerializerMethodField()
 
     job_title = serializers.SerializerMethodField()
     startup_name = serializers.SerializerMethodField()
+
+    def validate_links(self, value):
+        links = [link.strip() for link in value.splitlines() if link.strip()]
+        url_field = serializers.URLField()
+        errors = []
+        for link in links:
+            try:
+                url_field.run_validation(link)
+            except serializers.ValidationError:
+                errors.append(f"Invalid URL: {link}")
+        if errors:
+            raise serializers.ValidationError(errors)
+        return "\n".join(links)
 
     class Meta:
         model = JobApplication
@@ -65,6 +87,10 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             "student_name",
             "student_college",
             "student_course",
+            "applicant_name",
+            "applicant_email",
+            "links",
+            "resume",
             "job",
             "job_title",
             "startup_name",
@@ -83,7 +109,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
         ]
 
     def get_student_name(self, obj):
-        return str(obj.student)
+        return obj.applicant_name or str(obj.student)
 
     def get_student_college(self, obj):
         return obj.student.college

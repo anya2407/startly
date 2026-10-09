@@ -389,21 +389,9 @@ async function loadJobs() {
         ];
 
 
-    /*
-     * Our current backend supports one skill
-     * at a time.
-     *
-     * So for now we use the first selected skill.
-     */
-
-    if (selectedSkills.length > 0) {
-
-        params.set(
-            "skill",
-            selectedSkills[0].dataset.name
-        );
-
-    }
+    selectedSkills.forEach(skill => {
+        params.append("skill", skill.dataset.name);
+    });
 
 
     /* Open jobs */

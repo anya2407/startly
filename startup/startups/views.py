@@ -2,6 +2,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from student.models import Student, Skill
+from django.db.models import Q
+from pathlib import Path
 from rest_framework.permissions import IsAuthenticated
 from .models import (
     Startup,
@@ -20,20 +22,33 @@ from .serializers import (
 )
 
 
+def is_startup_account(user):
+    return Startup.objects.filter(owner=user).exists()
+
+
 class StartupListCreateView(APIView):
 
     def get(self, request):
+        if is_startup_account(request.user):
+            return Response(
+                {"detail": "Startup accounts cannot browse other startups."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         startups = Startup.objects.all()
 
-        skill = request.query_params.get("skill")
+        skills = request.query_params.getlist("skill")
         keyword = request.query_params.get("keyword")
-        industry = request.query_params.get("industry")
+        industries = request.query_params.getlist("industry")
         hiring = request.query_params.get("hiring")
 
-        if skill:
-            startups = startups.filter(
-                startup_skills__skill__name__iexact=skill
-            )
+        if skills:
+            skill_filter = Q()
+            for skill in skills:
+                skill_filter |= Q(
+                    startup_skills__skill__name__iexact=skill
+                )
+            startups = startups.filter(skill_filter)
 
         if keyword:
             startups = startups.filter(
@@ -42,10 +57,11 @@ class StartupListCreateView(APIView):
                 description__icontains=keyword
             )
 
-        if industry:
-            startups = startups.filter(
-                industry__iexact=industry
-            )
+        if industries:
+            industry_filter = Q()
+            for industry in industries:
+                industry_filter |= Q(industry__iexact=industry)
+            startups = startups.filter(industry_filter)
 
         if hiring:
             startups = startups.filter(
@@ -62,12 +78,18 @@ class StartupListCreateView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
+        if Startup.objects.filter(owner=request.user).exists():
+            return Response(
+                {"error": "A startup profile already exists for this account"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         serializer = StartupSerializer(
             data=request.data
         )
 
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(owner=request.user)
 
             return Response(
                 serializer.data,
@@ -89,6 +111,12 @@ class StartupDetailView(APIView):
             return None
 
     def get(self, request, pk):
+        if is_startup_account(request.user):
+            return Response(
+                {"detail": "Startup accounts cannot browse startup profiles."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         startup = self.get_object(pk)
 
         if startup is None:
@@ -108,6 +136,12 @@ class StartupDetailView(APIView):
             return Response(
                 {"error": "Startup not found"},
                 status=status.HTTP_404_NOT_FOUND
+            )
+
+        if startup.owner_id != request.user.id:
+            return Response(
+                {"error": "You are not allowed to update this startup"},
+                status=status.HTTP_403_FORBIDDEN
             )
 
         serializer = StartupSerializer(
@@ -134,6 +168,12 @@ class StartupDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        if startup.owner_id != request.user.id:
+            return Response(
+                {"error": "You are not allowed to delete this startup"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         startup.delete()
 
         return Response(
@@ -144,6 +184,12 @@ class StartupDetailView(APIView):
 class StartupSkillView(APIView):
 
     def get(self, request, startup_id):
+        if is_startup_account(request.user):
+            return Response(
+                {"detail": "Startup accounts cannot browse startup profiles."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         startup_skills = StartupSkill.objects.filter(
             startup_id=startup_id
         )
@@ -170,6 +216,12 @@ class StartupSkillView(APIView):
             return Response(
                 {"error": "Startup not found"},
                 status=status.HTTP_404_NOT_FOUND
+            )
+
+        if startup.owner_id != request.user.id:
+            return Response(
+                {"error": "You are not allowed to update this startup's skills"},
+                status=status.HTTP_403_FORBIDDEN
             )
 
         try:
@@ -217,6 +269,12 @@ class StartupSkillDeleteView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        if startup_skill.startup.owner_id != request.user.id:
+            return Response(
+                {"error": "You are not allowed to update this startup's skills"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         startup_skill.delete()
 
         return Response(
@@ -227,6 +285,16 @@ class StartupSkillDeleteView(APIView):
 class JobOpeningListCreateView(APIView):
 
     def get(self, request, startup_id):
+        if is_startup_account(request.user):
+            if not Startup.objects.filter(
+                id=startup_id,
+                owner=request.user
+            ).exists():
+                return Response(
+                    {"detail": "You can only manage your own job listings."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
         jobs = JobOpening.objects.filter(startup_id=startup_id)
 
         serializer = JobOpeningSerializer(jobs, many=True)
@@ -240,6 +308,12 @@ class JobOpeningListCreateView(APIView):
             return Response(
                 {"error": "Startup not found"},
                 status=status.HTTP_404_NOT_FOUND
+            )
+
+        if startup.owner_id != request.user.id:
+            return Response(
+                {"error": "You are not allowed to create jobs for this startup"},
+                status=status.HTTP_403_FORBIDDEN
             )
 
         serializer = JobOpeningSerializer(data=request.data)
@@ -266,6 +340,11 @@ class JobOpeningDetailView(APIView):
             return None
 
     def get(self, request, pk):
+        if is_startup_account(request.user):
+            return Response(
+                {"detail": "Startup accounts cannot browse job listings."},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         job = self.get_object(pk)
 
@@ -286,6 +365,12 @@ class JobOpeningDetailView(APIView):
             return Response(
                 {"error": "Job opening not found"},
                 status=status.HTTP_404_NOT_FOUND
+            )
+
+        if job.startup.owner_id != request.user.id:
+            return Response(
+                {"error": "You are not allowed to update this job"},
+                status=status.HTTP_403_FORBIDDEN
             )
 
         serializer = JobOpeningSerializer(job, data=request.data)
@@ -309,6 +394,12 @@ class JobOpeningDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        if job.startup.owner_id != request.user.id:
+            return Response(
+                {"error": "You are not allowed to delete this job"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         job.delete()
 
         return Response(
@@ -319,6 +410,12 @@ class JobOpeningDetailView(APIView):
 class JobSkillView(APIView):
 
     def get(self, request, job_id):
+        if is_startup_account(request.user):
+            return Response(
+                {"detail": "Startup accounts cannot browse job listings."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         job_skills = JobSkill.objects.filter(job_id=job_id)
 
         serializer = JobSkillSerializer(job_skills, many=True)
@@ -341,6 +438,12 @@ class JobSkillView(APIView):
             return Response(
                 {"error": "Job opening not found"},
                 status=status.HTTP_404_NOT_FOUND
+            )
+
+        if job.startup.owner_id != request.user.id:
+            return Response(
+                {"error": "You are not allowed to update this job's skills"},
+                status=status.HTTP_403_FORBIDDEN
             )
 
         try:
@@ -385,6 +488,12 @@ class JobSkillDeleteView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        if job_skill.job.startup.owner_id != request.user.id:
+            return Response(
+                {"error": "You are not allowed to update this job's skills"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         job_skill.delete()
 
         return Response(
@@ -395,18 +504,25 @@ class JobSkillDeleteView(APIView):
 class JobListView(APIView):
 
     def get(self, request):
+        if is_startup_account(request.user):
+            return Response(
+                {"detail": "Startup accounts cannot browse job listings."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         jobs = JobOpening.objects.all()
 
-        skill = request.query_params.get("skill")
+        skills = request.query_params.getlist("skill")
         keyword = request.query_params.get("keyword")
         location = request.query_params.get("location")
         employment_type = request.query_params.get("employment_type")
         is_open = request.query_params.get("open")
 
-        if skill:
-            jobs = jobs.filter(
-                job_skills__skill__name__iexact=skill
-            )
+        if skills:
+            skill_filter = Q()
+            for skill in skills:
+                skill_filter |= Q(job_skills__skill__name__iexact=skill)
+            jobs = jobs.filter(skill_filter)
 
         if keyword:
             jobs = jobs.filter(
@@ -489,16 +605,30 @@ class JobApplicationCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        cover_message = request.data.get(
-            "cover_message",
-            ""
-        )
+        serializer = JobApplicationSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        application = JobApplication.objects.create(
-            student=student,
-            job=job,
-            cover_message=cover_message
-        )
+        application = serializer.save(student=student, job=job)
+        use_profile_resume = request.data.get("use_profile_resume")
+        if (
+            not application.resume
+            and use_profile_resume in (True, "true", "1", "on")
+            and student.resume
+        ):
+            student.resume.open("rb")
+            try:
+                application.resume.save(
+                    Path(student.resume.name).name,
+                    student.resume.file,
+                    save=False
+                )
+                application.save(update_fields=["resume"])
+            finally:
+                student.resume.close()
 
         serializer = JobApplicationSerializer(
             application
@@ -519,6 +649,12 @@ class StartupApplicationListView(APIView):
             return Response(
                 {"error": "Startup not found"},
                 status=status.HTTP_404_NOT_FOUND
+            )
+
+        if startup.owner_id != request.user.id:
+            return Response(
+                {"error": "You are not allowed to view these applications"},
+                status=status.HTTP_403_FORBIDDEN
             )
 
         applications = JobApplication.objects.filter(
@@ -594,6 +730,11 @@ class JobApplicationStatusView(APIView):
 class IndustryListView(APIView):
 
     def get(self, request):
+        if is_startup_account(request.user):
+            return Response(
+                {"detail": "Startup accounts cannot browse other startups."},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         industries = (
             Startup.objects
@@ -610,7 +751,13 @@ class MyStartupView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        startup = Startup.objects.get(owner=request.user)
+        try:
+            startup = Startup.objects.get(owner=request.user)
+        except Startup.DoesNotExist:
+            return Response(
+                {"detail": "No startup profile found for this account."},
+                status=status.HTTP_404_NOT_FOUND
+            )
         serializer = StartupSerializer(startup)
         return Response(serializer.data)
 

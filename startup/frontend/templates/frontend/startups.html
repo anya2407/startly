@@ -479,14 +479,9 @@ async function loadStartups() {
             '#skill-options input[type="checkbox"]:checked'
         );
 
-    if (selectedSkills.length > 0) {
-
-        params.set(
-            "skill",
-            selectedSkills[0].dataset.name
-        );
-
-    }
+    selectedSkills.forEach(skill => {
+        params.append("skill", skill.dataset.name);
+    });
 
 
     /*
@@ -498,14 +493,9 @@ async function loadStartups() {
             '#industry-options input[type="checkbox"]:checked'
         );
 
-    if (selectedIndustries.length > 0) {
-
-        params.set(
-            "industry",
-            selectedIndustries[0].dataset.name
-        );
-
-    }
+    selectedIndustries.forEach(industry => {
+        params.append("industry", industry.dataset.name);
+    });
 
 
     /*

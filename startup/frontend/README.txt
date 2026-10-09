@@ -54,6 +54,8 @@ PAGES
 
 /                       Home
 /student/               Student dashboard
+/students/              Startup student directory (search/filter profiles)
+/students/<id>/         Student profile (owner can edit)
 /startups/              Browse/filter startups
 /startups/<id>/         Startup details
 /jobs/                  Browse/filter jobs
@@ -62,26 +64,38 @@ PAGES
 /startup/<id>/applications/
                         Startup application review
 
-CURRENT AUTH NOTE
------------------
-Authentication is not implemented yet, so the frontend temporarily asks
-for Student ID or Startup ID where necessary. This matches the current
-backend APIs.
+Startup owners can publish job openings and view their own postings from
+the dashboard. They can list only jobs belonging to their own startup.
 
-The application endpoint currently expects:
-{
-    "student_id": 1,
-    "cover_message": "..."
-}
-
-After authentication/permissions are added later, this can be changed to
-use the logged-in user instead of manually entering an ID.
+ROLE ACCESS
+-----------
+Students browse startups and jobs. Startup accounts browse student profiles
+through /students/ and review applications received by their own startup.
+Startup accounts cannot browse other startups or job listings. The student
+directory accepts keyword, repeated skill, and open-to-work filters.
 
 API ASSUMPTIONS
 ---------------
-The frontend expects the existing API URLs:
+The frontend uses Django session authentication. API requests require an
+authenticated user; write operations are limited to the profile owner.
+Job applications identify the student from the logged-in account and
+accept multipart form fields for the applicant name, email, optional
+newline-separated links, an optional replacement resume, and an optional
+cover message. If the applicant selects their profile resume and does not
+upload a replacement, the application stores its own copy.
+{
+    "applicant_name": "Student Name",
+    "applicant_email": "student@example.com",
+    "links": "https://portfolio.example.com",
+    "cover_message": "..."
+}
+
+The frontend uses these API URLs:
 
 /api/students/
+/api/students/<student_id>/
+/api/students/<student_id>/projects/
+/api/students/<student_id>/projects/<project_id>/
 /api/startups/
 /api/startups/<startup_id>/
 /api/startups/<startup_id>/skills/
@@ -91,6 +105,10 @@ The frontend expects the existing API URLs:
 /api/startups/jobs/<job_id>/skills/
 /api/startups/jobs/<job_id>/apply/
 /api/startups/<startup_id>/applications/
+/api/startups/my-applications/
 /api/startups/applications/<application_id>/status/
 
-No database migrations are required by this frontend package.
+Apply pending Django migrations after updating the student profile and
+job application models.
+Media uploads are served from MEDIA_ROOT during development and should be
+served by the deployment environment in production.

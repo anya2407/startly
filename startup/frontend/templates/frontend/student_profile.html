@@ -1,0 +1,353 @@
+{% extends "frontend/base.html" %}
+
+{% block title %}Student Profile — Startly{% endblock %}
+
+{% block content %}
+<section class="detail-shell student-profile-shell">
+    <div id="profile-loading" class="loading">Loading profile…</div>
+    <div id="profile-content" hidden></div>
+</section>
+
+{% if is_profile_owner %}
+<section class="section compact">
+    <div class="card profile-editor">
+        <div class="eyebrow">YOUR PROFILE</div>
+        <h2>Edit your profile</h2>
+        <form id="profile-form" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="profile-email">Email</label>
+                <input id="profile-email" name="email" type="email">
+            </div>
+            <div class="form-group">
+                <label for="profile-bio">About me</label>
+                <textarea id="profile-bio" name="bio" rows="5"></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="profile-linkedin">LinkedIn URL</label>
+                    <input id="profile-linkedin" name="linkedin_url" type="url">
+                </div>
+                <div class="form-group">
+                    <label for="profile-github">GitHub URL</label>
+                    <input id="profile-github" name="github_url" type="url">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="profile-picture">Profile picture (optional)</label>
+                    <input id="profile-picture" name="profile_picture" type="file" accept=".jpg,.jpeg,.png,.gif,.webp">
+                </div>
+                <div class="form-group">
+                    <label for="profile-resume">Resume (optional)</label>
+                    <input id="profile-resume" name="resume" type="file">
+                </div>
+            </div>
+            <button class="btn btn-primary" type="submit">Save profile</button>
+            <div id="profile-result" class="profile-result" aria-live="polite"></div>
+        </form>
+    </div>
+</section>
+
+<section class="section compact">
+    <div class="card profile-editor">
+        <div class="eyebrow">PROJECTS</div>
+        <h2>Add a project</h2>
+        <form id="project-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="project-title">Project name</label>
+                    <input id="project-title" name="title" maxlength="200" required>
+                </div>
+                <div class="form-group">
+                    <label for="project-url">Live project URL</label>
+                    <input id="project-url" name="url" type="url" placeholder="https://" required>
+                </div>
+            </div>
+            <button class="btn btn-primary" type="submit">Add project</button>
+            <div id="project-result" class="profile-result" aria-live="polite"></div>
+        </form>
+    </div>
+</section>
+
+<section class="section compact">
+    <div class="card profile-editor">
+        <div class="eyebrow">SKILLS</div>
+        <h2>Manage your skills</h2>
+        <form id="skill-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="skill-select">Add a skill</label>
+                    <select id="skill-select" required>
+                        <option value="">Choose a skill</option>
+                    </select>
+                </div>
+                <div class="form-group profile-skill-action">
+                    <button class="btn btn-primary" type="submit">Add skill</button>
+                </div>
+            </div>
+            <div id="skill-result" class="profile-result" aria-live="polite"></div>
+        </form>
+    </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const studentId = {{ student_id }};
+const profileOwner = {{ is_profile_owner|yesno:"true,false" }};
+const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]")?.value || "";
+
+function profileMessage(targetId, message, success = false) {
+    const target = document.getElementById(targetId);
+    target.className = `profile-result ${success ? "alert-success" : "alert-error"}`;
+    target.textContent = message;
+}
+
+function escapeAttribute(value) {
+    return escapeHtml(value)
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+function renderProfile(profile) {
+    const picture = profile.profile_picture
+        ? `<img class="student-profile-picture" src="${escapeAttribute(profile.profile_picture)}" alt="${escapeAttribute(profile.name)}">`
+        : `<div class="student-profile-placeholder" aria-label="No profile picture">${escapeHtml(profile.name.slice(0, 1).toUpperCase())}</div>`;
+    const projects = profile.projects.length
+        ? profile.projects.map(project => `
+            <li>
+                <a href="${escapeAttribute(project.url)}" target="_blank" rel="noopener noreferrer">
+                    ${escapeHtml(project.title)}
+                </a>
+                ${profileOwner ? `
+                    <button class="btn btn-secondary btn-small" type="button" onclick="toggleProjectEditor(${project.id})">Edit</button>
+                    <button class="btn btn-danger btn-small" type="button" onclick="deleteProject(${project.id})">Remove</button>
+                    <form id="project-edit-${project.id}" class="project-edit-form" hidden onsubmit="updateProject(event, ${project.id})">
+                        <input name="title" value="${escapeAttribute(project.title)}" maxlength="200" required>
+                        <input name="url" type="url" value="${escapeAttribute(project.url)}" required>
+                        <button class="btn btn-primary btn-small" type="submit">Save</button>
+                    </form>
+                ` : ""}
+            </li>
+        `).join("")
+        : `<li class="profile-muted">No projects added yet.</li>`;
+    const skills = profile.skills.length
+        ? profile.skills.map(skill => `
+            <span class="tag">
+                ${escapeHtml(skill.name)}
+                ${profileOwner ? `<button type="button" aria-label="Remove ${escapeHtml(skill.name)}" onclick="deleteSkill(${skill.id})">×</button>` : ""}
+            </span>
+        `).join("")
+        : `<span class="profile-muted">No skills added yet.</span>`;
+
+    document.getElementById("profile-content").innerHTML = `
+        <div class="student-profile-heading">
+            ${picture}
+            <div>
+                <div class="eyebrow">STUDENT PROFILE</div>
+                <h1>${escapeHtml(profile.name)}</h1>
+                <p class="profile-muted">${escapeHtml(profile.course)} · Year ${escapeHtml(profile.year)} · ${escapeHtml(profile.college)}</p>
+            </div>
+        </div>
+        <section class="profile-section">
+            <h2>About me</h2>
+            <p>${escapeHtml(profile.bio || "This student has not added an introduction yet.")}</p>
+        </section>
+        <section class="profile-section">
+            <h2>Contact</h2>
+            ${profile.email ? `<p><a href="mailto:${escapeAttribute(profile.email)}">${escapeHtml(profile.email)}</a></p>` : `<p class="profile-muted">No email provided.</p>`}
+            <div class="profile-links">
+                ${profile.linkedin_url ? `<a href="${escapeAttribute(profile.linkedin_url)}" target="_blank" rel="noopener noreferrer">LinkedIn ↗</a>` : ""}
+                ${profile.github_url ? `<a href="${escapeAttribute(profile.github_url)}" target="_blank" rel="noopener noreferrer">GitHub ↗</a>` : ""}
+            </div>
+        </section>
+        <section class="profile-section">
+            <h2>Skills</h2>
+            <div id="profile-skills" class="tag-list">${skills}</div>
+        </section>
+        <section class="profile-section">
+            <h2>Projects</h2>
+            <ul id="profile-projects" class="profile-projects">${projects}</ul>
+        </section>
+        <section class="profile-section">
+            <h2>Resume</h2>
+            ${profile.resume ? `<a href="${escapeAttribute(profile.resume)}" target="_blank" rel="noopener noreferrer">View resume ↗</a>` : `<p class="profile-muted">No resume uploaded.</p>`}
+        </section>
+    `;
+
+    if (profileOwner) {
+        document.getElementById("profile-email").value = profile.email || "";
+        document.getElementById("profile-bio").value = profile.bio || "";
+        document.getElementById("profile-linkedin").value = profile.linkedin_url || "";
+        document.getElementById("profile-github").value = profile.github_url || "";
+    }
+    document.getElementById("profile-loading").hidden = true;
+    document.getElementById("profile-content").hidden = false;
+}
+
+async function loadProfile() {
+    try {
+        const response = await fetch(`/api/students/${studentId}/`);
+        if (!response.ok) {
+            throw new Error("Could not load profile");
+        }
+        const profile = await response.json();
+        renderProfile(profile);
+        if (profileOwner) {
+            try {
+                await loadSkillOptions(profile.skills);
+            } catch (error) {
+                profileMessage(
+                    "skill-result",
+                    error.message || "Could not load available skills."
+                );
+            }
+        }
+    } catch (error) {
+        document.getElementById("profile-loading").innerHTML =
+            errorBox("Could not load this student profile.");
+    }
+}
+
+document.getElementById("profile-form")?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    for (const field of ["profile_picture", "resume"]) {
+        if (!formData.get(field)?.size) {
+            formData.delete(field);
+        }
+    }
+    try {
+        const response = await fetch(`/api/students/${studentId}/`, {
+            method: "PATCH",
+            headers: {"X-CSRFToken": csrfToken},
+            body: formData
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(Object.values(data).flat().join(" "));
+        }
+        renderProfile(data);
+        profileMessage("profile-result", "Profile saved.", true);
+    } catch (error) {
+        profileMessage("profile-result", error.message || "Could not save profile.");
+    }
+});
+
+async function loadSkillOptions(currentSkills) {
+    const response = await fetch("/api/students/skills/");
+    if (!response.ok) {
+        throw new Error("Could not load available skills.");
+    }
+    const skills = await response.json();
+    const currentIds = new Set(currentSkills.map(skill => skill.id));
+    document.getElementById("skill-select").innerHTML =
+        `<option value="">Choose a skill</option>` +
+        skills.filter(skill => !currentIds.has(skill.id))
+            .map(skill => `<option value="${skill.id}">${escapeHtml(skill.name)}</option>`)
+            .join("");
+}
+
+document.getElementById("skill-form")?.addEventListener("submit", async event => {
+    event.preventDefault();
+    try {
+        const response = await fetch(`/api/students/${studentId}/skills/`, {
+            method: "POST",
+            headers: {"Content-Type": "application/json", "X-CSRFToken": csrfToken},
+            body: JSON.stringify({skill_id: document.getElementById("skill-select").value})
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || "Could not add skill.");
+        }
+        await loadProfile();
+        profileMessage("skill-result", "Skill added.", true);
+    } catch (error) {
+        profileMessage("skill-result", error.message);
+    }
+});
+
+async function deleteSkill(skillId) {
+    try {
+        const response = await fetch(`/api/students/${studentId}/skills/${skillId}/`, {
+            method: "DELETE",
+            headers: {"X-CSRFToken": csrfToken}
+        });
+        if (!response.ok) {
+            throw new Error("Could not remove skill.");
+        }
+        await loadProfile();
+    } catch (error) {
+        profileMessage("skill-result", error.message);
+    }
+}
+
+document.getElementById("project-form")?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    try {
+        const response = await fetch(`/api/students/${studentId}/projects/`, {
+            method: "POST",
+            headers: {"Content-Type": "application/json", "X-CSRFToken": csrfToken},
+            body: JSON.stringify({title: form.get("title"), url: form.get("url")})
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(Object.values(data).flat().join(" "));
+        }
+        event.currentTarget.reset();
+        await loadProfile();
+        profileMessage("project-result", "Project added.", true);
+    } catch (error) {
+        profileMessage("project-result", error.message || "Could not add project.");
+    }
+});
+
+async function deleteProject(projectId) {
+    try {
+        const response = await fetch(`/api/students/${studentId}/projects/${projectId}/`, {
+            method: "DELETE",
+            headers: {"X-CSRFToken": csrfToken}
+        });
+        if (!response.ok) {
+            throw new Error("Could not remove project.");
+        }
+        await loadProfile();
+    } catch (error) {
+        profileMessage("project-result", error.message);
+    }
+}
+
+function toggleProjectEditor(projectId) {
+    const form = document.getElementById(`project-edit-${projectId}`);
+    form.hidden = !form.hidden;
+}
+
+async function updateProject(event, projectId) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    try {
+        const response = await fetch(`/api/students/${studentId}/projects/${projectId}/`, {
+            method: "PATCH",
+            headers: {"Content-Type": "application/json", "X-CSRFToken": csrfToken},
+            body: JSON.stringify({
+                title: formData.get("title"),
+                url: formData.get("url")
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(Object.values(data).flat().join(" "));
+        }
+        await loadProfile();
+        profileMessage("project-result", "Project updated.", true);
+    } catch (error) {
+        profileMessage("project-result", error.message || "Could not update project.");
+    }
+}
+
+document.addEventListener("DOMContentLoaded", loadProfile);
+</script>
+{% endblock %}

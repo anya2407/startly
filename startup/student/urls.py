@@ -7,6 +7,8 @@ from .views import (
     StudentSkillDeleteView,
     SkillListView,
     MyStudentApplicationsView,
+    StudentProjectListCreateView,
+    StudentProjectDetailView,
 )
 
 urlpatterns = [
@@ -31,6 +33,16 @@ urlpatterns = [
         "<int:student_id>/skills/<int:skill_id>/",
         StudentSkillDeleteView.as_view(),
         name="student-skill-delete"
+    ),
+    path(
+        "<int:student_id>/projects/",
+        StudentProjectListCreateView.as_view(),
+        name="student-project-list-create"
+    ),
+    path(
+        "<int:student_id>/projects/<int:project_id>/",
+        StudentProjectDetailView.as_view(),
+        name="student-project-detail"
     ),
     path("skills/", SkillListView.as_view(), name="skill-list"),
     path(

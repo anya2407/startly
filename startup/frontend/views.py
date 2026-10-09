@@ -3,9 +3,20 @@ from django.views import View
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+from django.http import Http404
 
 from student.models import Student
 from startups.models import Startup
+
+
+def has_student_profile(user):
+    return Student.objects.filter(user=user).exists()
+
+
+def has_startup_profile(user):
+    return Startup.objects.filter(owner=user).exists()
 
 
 class HomeView(View):
@@ -27,9 +38,40 @@ class StudentDashboardView(LoginRequiredMixin, View):
     login_url = "/login/"
 
     def get(self, request):
+        if has_startup_profile(request.user):
+            return redirect("/startup-dashboard/")
+        if not has_student_profile(request.user):
+            return redirect("/login/")
         return render(
             request,
-            "frontend/student_dashboard.html"
+            "frontend/student_dashboard.html",
+            {
+                "student_id": Student.objects.filter(
+                    user=request.user
+                ).values_list("id", flat=True).first()
+            }
+        )
+
+
+class StudentProfileView(LoginRequiredMixin, View):
+    login_url = "/login/"
+
+    def get(self, request, student_id):
+        if not has_startup_profile(request.user) and not has_student_profile(request.user):
+            return redirect("/login/")
+        if not Student.objects.filter(pk=student_id).exists():
+            raise Http404("Student profile not found")
+
+        return render(
+            request,
+            "frontend/student_profile.html",
+            {
+                "student_id": student_id,
+                "is_profile_owner": Student.objects.filter(
+                    pk=student_id,
+                    user=request.user
+                ).exists(),
+            }
         )
 
 
@@ -37,6 +79,10 @@ class StartupListView(LoginRequiredMixin, View):
     login_url = "/login/"
 
     def get(self, request):
+        if has_startup_profile(request.user):
+            return redirect("/students/")
+        if not has_student_profile(request.user):
+            return redirect("/login/")
         return render(
             request,
             "frontend/startups.html"
@@ -46,6 +92,10 @@ class StartupListView(LoginRequiredMixin, View):
 class StartupDetailView(LoginRequiredMixin, View):
     login_url = "/login/"
     def get(self, request, startup_id):
+        if has_startup_profile(request.user):
+            return redirect("/students/")
+        if not has_student_profile(request.user):
+            return redirect("/login/")
         return render(
             request,
             "frontend/startup_detail.html",
@@ -56,27 +106,57 @@ class StartupDetailView(LoginRequiredMixin, View):
 class JobListView(LoginRequiredMixin, View):
     login_url = "/login/"
     def get(self, request):
+        if has_startup_profile(request.user):
+            return redirect("/students/")
+        if not has_student_profile(request.user):
+            return redirect("/login/")
         return render(request, "frontend/jobs.html")
 
 class JobDetailView(LoginRequiredMixin, View):
     login_url = "/login/"
     def get(self, request, job_id):
+        if has_startup_profile(request.user):
+            return redirect("/students/")
+        if not has_student_profile(request.user):
+            return redirect("/login/")
+        student_id = Student.objects.filter(
+            user=request.user
+        ).values_list("id", flat=True).first()
         return render(
             request,
             "frontend/job_detail.html",
-            {"job_id": job_id},
+            {
+                "job_id": job_id,
+                "student_id": student_id,
+            },
         )
+
+
+class StudentDirectoryView(LoginRequiredMixin, View):
+    login_url = "/login/"
+
+    def get(self, request):
+        if not has_startup_profile(request.user):
+            return redirect("/student/")
+        return render(request, "frontend/student_directory.html")
 
 
 class StartupDashboardView(LoginRequiredMixin, View):
     login_url = "/login/"
     def get(self, request):
+        if not has_startup_profile(request.user):
+            return redirect("/student/")
         return render(request, "frontend/startup_dashboard.html")
 
 
 class StartupApplicationsView(LoginRequiredMixin, View):
     login_url = "/login/"
     def get(self, request, startup_id):
+        if not Startup.objects.filter(
+            owner=request.user,
+            id=startup_id
+        ).exists():
+            return redirect("/startup-dashboard/")
         return render(
             request,
             "frontend/startup_applications.html",
@@ -144,6 +224,7 @@ class RegisterView(View):
 
         first_name = request.POST.get("first_name", "")
         last_name = request.POST.get("last_name", "")
+        email = request.POST.get("email", "")
 
         if not username or not password:
             return render(
@@ -151,6 +232,16 @@ class RegisterView(View):
                 "frontend/register.html",
                 {"error": "Username and password are required."}
             )
+
+        if email:
+            try:
+                validate_email(email)
+            except ValidationError:
+                return render(
+                    request,
+                    "frontend/register.html",
+                    {"error": "Enter a valid email address."}
+                )
 
         if password != confirm_password:
             return render(
@@ -179,6 +270,8 @@ class RegisterView(View):
             first_name=first_name,
             last_name=last_name
         )
+        user.email = email
+        user.save(update_fields=["email"])
 
         if account_type == "student":
 
@@ -217,4 +310,4 @@ class RegisterView(View):
         if account_type == "student":
             return redirect("/student/")
 
-        return redirect("/login/")
+        return redirect("/startup-dashboard/")

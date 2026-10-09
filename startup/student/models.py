@@ -8,6 +8,13 @@ class Student(models.Model):
     course = models.CharField(max_length=100)
     year = models.IntegerField()
     bio = models.TextField(blank=True)
+    profile_picture = models.FileField(
+        upload_to="profiles/pictures/",
+        blank=True,
+        null=True
+    )
+    linkedin_url = models.URLField(blank=True)
+    github_url = models.URLField(blank=True)
     resume = models.FileField(upload_to="resumes/", blank=True, null=True)
 
     is_open_to_work = models.BooleanField(default=True)
@@ -45,3 +52,19 @@ class StudentSkill(models.Model):
     def __str__(self):
         return f"{self.student} - {self.skill}"
 
+
+class StudentProject(models.Model):
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name="projects"
+    )
+    title = models.CharField(max_length=200)
+    url = models.URLField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.student} - {self.title}"

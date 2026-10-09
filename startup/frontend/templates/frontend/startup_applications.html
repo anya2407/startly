@@ -24,6 +24,7 @@
         <div class="loading">
             Loading applications…
         </div>
+        {% csrf_token %}
 
     </div>
 
@@ -78,6 +79,13 @@ async function loadApplications() {
                         )}
                     </h3>
 
+                    <a
+                        class="text-link"
+                        href="/students/${application.student}/"
+                    >
+                        View student profile →
+                    </a>
+
                     <p>
                         ${escapeHtml(
                             application.student_college
@@ -87,6 +95,44 @@ async function loadApplications() {
                             application.student_course
                         )}
                     </p>
+
+                    ${
+                        application.applicant_email
+                            ? `
+                                <p>
+                                    <a href="mailto:${escapeHtml(application.applicant_email)}">
+                                        ${escapeHtml(application.applicant_email)}
+                                    </a>
+                                </p>
+                              `
+                            : ""
+                    }
+
+                    ${
+                        application.links
+                            ? `
+                                <div class="profile-links">
+                                    ${application.links.split("\n").filter(Boolean).map(link => `
+                                        <a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">
+                                            ${escapeHtml(link)}
+                                        </a>
+                                    `).join("")}
+                                </div>
+                              `
+                            : ""
+                    }
+
+                    ${
+                        application.resume
+                            ? `
+                                <p>
+                                    <a href="${escapeHtml(application.resume)}" target="_blank" rel="noopener noreferrer">
+                                        View submitted resume ↗
+                                    </a>
+                                </p>
+                              `
+                            : ""
+                    }
 
                     ${
                         application.cover_message
@@ -163,6 +209,10 @@ async function updateApplication(
 ) {
 
     try {
+        const csrfToken =
+            document.querySelector(
+                "[name=csrfmiddlewaretoken]"
+            ).value;
 
         const response =
             await fetch(
@@ -171,7 +221,8 @@ async function updateApplication(
                     method: "PUT",
 
                     headers: {
-                        "Content-Type": "application/json"
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": csrfToken
                     },
 
                     body: JSON.stringify({

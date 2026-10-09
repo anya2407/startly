@@ -18,11 +18,25 @@
     <div class="dashboard-actions">
 
         <a
+            class="btn btn-primary"
+            href="/students/"
+        >
+            Browse students →
+        </a>
+
+        <a
             id="applications-link"
             class="btn btn-secondary"
             href="#"
         >
             View applications →
+        </a>
+
+        <a
+            href="#job-opening-form"
+            class="btn btn-secondary"
+        >
+            Post a job →
         </a>
 
     </div>
@@ -39,6 +53,54 @@
 
     </div>
 
+</section>
+
+<section class="section compact">
+    <div class="section-heading">
+        <div>
+            <div class="eyebrow">YOUR OPENINGS</div>
+            <h2>Manage job postings</h2>
+        </div>
+    </div>
+    <div id="startup-jobs" class="card-grid">
+        <div class="loading">Loading your job postings…</div>
+    </div>
+</section>
+
+<section id="job-opening-form" class="section compact">
+    <div class="card">
+        <div class="eyebrow">NEW OPPORTUNITY</div>
+        <h2>Post a job opening</h2>
+        <p>Share a role with students browsing opportunities on Startly.</p>
+        <form id="job-opening-form-fields">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="job-title">Job title</label>
+                <input id="job-title" name="title" maxlength="200" required>
+            </div>
+            <div class="form-group">
+                <label for="job-description">Description</label>
+                <textarea id="job-description" name="description" rows="5" required></textarea>
+            </div>
+            <div class="form-group">
+                <label for="job-location">Location</label>
+                <input id="job-location" name="location" maxlength="200" placeholder="Remote, Bengaluru, etc.">
+            </div>
+            <div class="form-group">
+                <label for="job-employment-type">Employment type</label>
+                <select id="job-employment-type" name="employment_type" required>
+                    <option value="Internship">Internship</option>
+                    <option value="Full-time">Full-time</option>
+                    <option value="Part-time">Part-time</option>
+                    <option value="Contract">Contract</option>
+                </select>
+            </div>
+            <div id="job-opening-result" aria-live="polite"></div>
+            <button id="job-opening-submit" class="btn btn-primary" type="submit">
+                Publish job
+            </button>
+        </form>
+    </div>
 </section>
 
 {% endblock %}
@@ -63,6 +125,7 @@ async function loadStartupDashboard() {
 
         const startup =
             await response.json();
+        window.startupId = startup.id;
 
         document.getElementById(
             "applications-link"
@@ -112,6 +175,7 @@ async function loadStartupDashboard() {
             </div>
 
         `;
+        await loadStartupJobs();
 
     } catch (error) {
 
@@ -122,6 +186,92 @@ async function loadStartupDashboard() {
 
     }
 }
+
+async function loadStartupJobs() {
+    const jobsBox = document.getElementById("startup-jobs");
+    try {
+        const response = await fetch(
+            `/api/startups/${window.startupId}/jobs/`
+        );
+        const jobs = await response.json();
+        if (!response.ok) {
+            throw new Error(jobs.detail || "Could not load your job postings.");
+        }
+        jobsBox.innerHTML = jobs.length
+            ? jobs.map(job => `
+                <article class="card result-card">
+                    <div class="card-topline">
+                        <span class="eyebrow">${escapeHtml(job.employment_type)}</span>
+                        <span class="status ${job.is_open ? "status-open" : "status-muted"}">
+                            ${job.is_open ? "Open" : "Closed"}
+                        </span>
+                    </div>
+                    <h3>${escapeHtml(job.title)}</h3>
+                    <p>${escapeHtml(job.description)}</p>
+                    <div class="meta-row">
+                        <span>📍 ${escapeHtml(job.location || "Location not specified")}</span>
+                    </div>
+                </article>
+            `).join("")
+            : emptyBox("No job openings posted yet.");
+    } catch (error) {
+        jobsBox.innerHTML = errorBox(error.message || "Could not load your job postings.");
+    }
+}
+
+document.getElementById("job-opening-form-fields").addEventListener(
+    "submit",
+    async event => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const submitButton = document.getElementById("job-opening-submit");
+        const result = document.getElementById("job-opening-result");
+        const formData = new FormData(form);
+        submitButton.disabled = true;
+        result.innerHTML = "";
+
+        try {
+            const response = await fetch(
+                `/api/startups/${window.startupId}/jobs/`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": form.querySelector(
+                            "[name=csrfmiddlewaretoken]"
+                        ).value
+                    },
+                    body: JSON.stringify({
+                        title: formData.get("title").trim(),
+                        description: formData.get("description").trim(),
+                        location: formData.get("location").trim(),
+                        employment_type: formData.get("employment_type"),
+                        is_open: true
+                    })
+                }
+            );
+            const data = await response.json();
+            if (!response.ok) {
+                const message = data.error ||
+                    Object.values(data).flat().join(" ") ||
+                    data.detail ||
+                    "Could not publish this job.";
+                throw new Error(message);
+            }
+
+            result.innerHTML =
+                '<div class="alert alert-success">Job published successfully.</div>';
+            form.reset();
+            await loadStartupJobs();
+        } catch (error) {
+            result.innerHTML = errorBox(
+                error.message || "Could not publish this job."
+            );
+        } finally {
+            submitButton.disabled = false;
+        }
+    }
+);
 
 document.addEventListener(
     "DOMContentLoaded",

@@ -19,6 +19,11 @@
         <p>
             Browse jobs and startups using the skills you already have.
         </p>
+        {% if student_id %}
+            <a class="btn btn-secondary" href="/students/{{ student_id }}/">
+                View / edit profile
+            </a>
+        {% endif %}
 
     </div>
 
